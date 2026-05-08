@@ -1,13 +1,30 @@
-import { MeshProps } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
+import { useRef } from "react";
+import * as THREE from "three";
 
-type Props = MeshProps & {
+type PlanetProps = {
+  position: [number, number, number];
   size: number;
   color: string;
+  speed: number;
 };
 
-export default function Planet({ size, color, ...props }: Props) {
+export default function Planet({
+  position,
+  size,
+  color,
+  speed,
+}: PlanetProps) {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame(() => {
+    if (!meshRef.current) return;
+
+    meshRef.current.rotation.y += speed;
+  });
+
   return (
-    <mesh {...props}>
+    <mesh ref={meshRef} position={position}>
       <sphereGeometry args={[size, 32, 32]} />
       <meshStandardMaterial color={color} />
     </mesh>
