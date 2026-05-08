@@ -1,31 +1,29 @@
-import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
-import { useRef } from "react";
-import * as THREE from "three";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Stars } from "@react-three/drei";
+import Planet from "./Planet";
 
-type PlanetProps = {
-  position: [number, number, number];
-  size: number;
-  color: string;
-  speed: number;
-};
+const colors = [
+  "orange",
+  "skyblue",
+  "purple",
+  "green",
+  "red",
+  "yellow",
+];
 
-function Planet({ position, size, color, speed }: PlanetProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
+const planets = Array.from({ length: 12 }, (_, i) => ({
+  id: i,
+  position: [
+    (Math.random() - 0.5) * 30,
+    (Math.random() - 0.5) * 10,
+    (Math.random() - 0.5) * 30,
+  ] as [number, number, number],
+  size: Math.random() * 1.5 + 0.5,
+  color: colors[Math.floor(Math.random() * colors.length)],
+  speed: Math.random() * 0.01 + 0.001,
+}));
 
-  useFrame(() => {
-    if (!meshRef.current) return;
 
-    meshRef.current.rotation.y += speed;
-  });
-
-  return (
-    <mesh ref={meshRef} position={position}>
-      <sphereGeometry args={[size, 32, 32]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
-  );
-}
 
 export default function SpaceScene() {
   return (
@@ -34,27 +32,25 @@ export default function SpaceScene() {
 
       <pointLight position={[10, 10, 10]} intensity={2} />
 
-      <Planet
-        position={[0, 0, 0]}
-        size={2}
-        color="orange"
-        speed={0.003}
+      <Stars
+        radius={100}
+        depth={50}
+        count={5000}
+        factor={4}
+        saturation={0}
+        fade
+        speed={1}
       />
-
-      <Planet
-        position={[5, 0, -3]}
-        size={1}
-        color="skyblue"
-        speed={0.01}
-      />
-
-      <Planet
-        position={[-6, 1, -5]}
-        size={1.5}
-        color="purple"
-        speed={0.005}
-      />
-
+      {planets.map((planet) => (
+  	<Planet
+    	  key={planet.id}
+          position={planet.position}
+          size={planet.size}
+          color={planet.color}
+          speed={planet.speed}
+        />
+      ))}
+     
       <OrbitControls />
     </Canvas>
   );

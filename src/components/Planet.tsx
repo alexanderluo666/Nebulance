@@ -24,9 +24,20 @@ export default function Planet({
   });
 
   return (
-    <mesh ref={meshRef} position={position}>
-      <sphereGeometry args={[size, 32, 32]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
-  );
+    <group>
+      <mesh ref={meshRef} position={position}>
+        <sphereGeometry args={[size, 32, 32]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+
+      <mesh position={position}>
+        <sphereGeometry args={[size * 1.08, 32, 32]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={0.15}
+        />
+      </mesh>
+    </group>
+);
 }
