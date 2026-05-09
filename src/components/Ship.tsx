@@ -1,6 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import spaceshipUrl from "../assets/Spaceship.glb?url";
 
@@ -14,12 +14,49 @@ type InputKeys = {
   shift: boolean;
   left: boolean;
   right: boolean;
+  up: boolean;
+  down: boolean;
 };
+
+type Laser = {
+  position: THREE.Vector3;
+  direction: THREE.Vector3;
+};
+
+const coreGeometry = new THREE.CylinderGeometry(0.15, 0.15, 150, 8);
+coreGeometry.rotateX(Math.PI / 2);
+const coreMaterial = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 1, blending: THREE.AdditiveBlending });
+
+const glowGeometry = new THREE.CylinderGeometry(0.6, 0.6, 150, 8);
+glowGeometry.rotateX(Math.PI / 2);
+const laserGlowMaterial = new THREE.MeshBasicMaterial({ color: "#ff2222", transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+
+const smokeGeometry = new THREE.IcosahedronGeometry(0.15, 1);
+const smokeMaterial = new THREE.MeshBasicMaterial({
+  color: "#ffffff",
+  transparent: true,
+  opacity: 0.4,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+
+type SmokeData = {
+  position: THREE.Vector3;
+  velocity: THREE.Vector3;
+  scale: number;
+  life: number;
+  maxLife: number;
+  rotation: number;
+  rotationSpeed: number;
+  isBoost: boolean;
+};
+const MAX_SMOKE = 600;
 
 function CameraController({ ship, rotation }: { ship: React.RefObject<THREE.Object3D>; rotation: React.RefObject<THREE.Euler> }) {
   const { camera } = useThree();
+  const lookAtTarget = useRef(new THREE.Vector3());
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!ship.current || !rotation.current) return;
 
     const offset = new THREE.Vector3(0, 2, 10);
@@ -27,8 +64,10 @@ function CameraController({ ship, rotation }: { ship: React.RefObject<THREE.Obje
 
     const targetPos = new THREE.Vector3().copy(ship.current.position).add(offset);
 
-    camera.position.lerp(targetPos, 0.08);
-    camera.lookAt(ship.current.position);
+    camera.position.lerp(targetPos, 1 - Math.exp(-8 * delta));
+    
+    lookAtTarget.current.lerp(ship.current.position, 1 - Math.exp(-12 * delta));
+    camera.lookAt(lookAtTarget.current);
   });
 
   return null;
@@ -36,8 +75,12 @@ function CameraController({ ship, rotation }: { ship: React.RefObject<THREE.Obje
 
 export default function Ship({ position, rotation }: { position: React.RefObject<THREE.Vector3>; rotation: React.RefObject<THREE.Euler> }) {
   const ref = useRef<THREE.Object3D>(null!);
+  const laserGroup = useRef<THREE.Group>(null);
+  const smokeInstancedMesh = useRef<THREE.InstancedMesh>(null);
+  const smokeRef = useRef<SmokeData[]>([]);
   const velocity = useRef(new THREE.Vector3(0, 0, 0));
   const tempAccel = useRef(new THREE.Vector3(0, 0, 0));
+  const lasers = useRef<Laser[]>([]);
   const keys = useRef<InputKeys>({
     w: false,
     a: false,
@@ -48,19 +91,13 @@ export default function Ship({ position, rotation }: { position: React.RefObject
     shift: false,
     left: false,
     right: false,
+    up: false,
+    down: false,
   });
-
-  const mouseSensitivity = 0.002;
-  const [mouseDeltaX, setMouseDeltaX] = useState(0);
-  const [mouseDeltaY, setMouseDeltaY] = useState(0);
-  const [lasers, setLasers] = useState<{id: number, position: THREE.Vector3, direction: THREE.Vector3}[]>([]);
 
   const { scene } = useGLTF(spaceshipUrl);
 
   useEffect(() => {
-    let lastMouseX = window.innerWidth / 2;
-    let lastMouseY = window.innerHeight / 2;
-
     const down = (e: KeyboardEvent) => {
       if (e.key === "w") keys.current.w = true;
       if (e.key === "s") keys.current.s = true;
@@ -73,15 +110,16 @@ export default function Ship({ position, rotation }: { position: React.RefObject
 
       if (e.key === "ArrowLeft") keys.current.left = true;
       if (e.key === "ArrowRight") keys.current.right = true;
+      if (e.key === "ArrowUp") keys.current.up = true;
+      if (e.key === "ArrowDown") keys.current.down = true;
 
       if (e.code === "Space") {
         e.preventDefault();
-        const newLaser = {
-          id: Date.now(),
+        const newLaser: Laser = {
           position: position.current.clone(),
-          direction: new THREE.Vector3(0, 0, -1).applyEuler(rotation.current),
+          direction: new THREE.Vector3(0, 0, -1).applyEuler(rotation.current).normalize(),
         };
-        setLasers((prev) => [...prev, newLaser]);
+        lasers.current.push(newLaser);
       }
     };
 
@@ -97,45 +135,37 @@ export default function Ship({ position, rotation }: { position: React.RefObject
 
       if (e.key === "ArrowLeft") keys.current.left = false;
       if (e.key === "ArrowRight") keys.current.right = false;
-    };
-
-    const move = (e: MouseEvent) => {
-      const deltaX = e.clientX - lastMouseX;
-      const deltaY = e.clientY - lastMouseY;
-      setMouseDeltaX(deltaX);
-      setMouseDeltaY(deltaY);
-      lastMouseX = e.clientX;
-      lastMouseY = e.clientY;
+      if (e.key === "ArrowUp") keys.current.up = false;
+      if (e.key === "ArrowDown") keys.current.down = false;
     };
 
     document.addEventListener("keydown", down);
     document.addEventListener("keyup", up);
-    document.addEventListener("mousemove", move);
 
     return () => {
       document.removeEventListener("keydown", down);
       document.removeEventListener("keyup", up);
-      document.removeEventListener("mousemove", move);
     };
   }, []);
 
   useFrame((_, delta) => {
     if (!ref.current || !position.current || !rotation.current) return;
 
-    const accelerationStrength = 0.012;
-    const maxSpeed = keys.current.shift ? 1.2 : 0.55;
+    const accelerationStrength = keys.current.shift ? 0.04 : 0.014;
+    const maxSpeed = keys.current.shift ? 1.8 : 0.65;
     const rollSpeed = 0.06;
-
-    rotation.current.y -= mouseDeltaX * mouseSensitivity;
-    rotation.current.x -= mouseDeltaY * mouseSensitivity;
-    rotation.current.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotation.current.x));
-
-    setMouseDeltaX(0);
-    setMouseDeltaY(0);
+    const turnSpeed = 0.04;
 
     if (keys.current.left) {
+      rotation.current.y += turnSpeed;
+    }
+    if (keys.current.right) {
+      rotation.current.y -= turnSpeed;
+    }
+
+    if (keys.current.q) {
       rotation.current.z += rollSpeed;
-    } else if (keys.current.right) {
+    } else if (keys.current.e) {
       rotation.current.z -= rollSpeed;
     } else {
       rotation.current.z *= 0.96;
@@ -143,15 +173,15 @@ export default function Ship({ position, rotation }: { position: React.RefObject
 
     const forward = new THREE.Vector3(0, 0, -1).applyEuler(rotation.current);
     const right = new THREE.Vector3(1, 0, 0).applyEuler(rotation.current);
-    const up = new THREE.Vector3(0, 1, 0);
+    const upDirection = new THREE.Vector3(0, 1, 0);
 
     tempAccel.current.set(0, 0, 0);
     if (keys.current.w) tempAccel.current.add(forward);
     if (keys.current.s) tempAccel.current.addScaledVector(forward, -1);
     if (keys.current.a) tempAccel.current.addScaledVector(right, -1);
     if (keys.current.d) tempAccel.current.add(right);
-    if (keys.current.q) tempAccel.current.add(up);
-    if (keys.current.e) tempAccel.current.addScaledVector(up, -1);
+    if (keys.current.up) tempAccel.current.add(upDirection);
+    if (keys.current.down) tempAccel.current.addScaledVector(upDirection, -1);
 
     if (tempAccel.current.lengthSq() > 0) {
       tempAccel.current.normalize().multiplyScalar(accelerationStrength);
@@ -167,41 +197,113 @@ export default function Ship({ position, rotation }: { position: React.RefObject
     ref.current.position.copy(position.current);
     ref.current.rotation.copy(rotation.current);
 
-    setLasers((prev) =>
-      prev
-        .map((laser) => {
-          laser.position.addScaledVector(laser.direction, delta * 60 * 100); // laser speed
-          return laser;
-        })
-        .filter((laser) => laser.position.length() < 2000)
-    );
+    lasers.current = lasers.current.filter((laser) => {
+      laser.position.addScaledVector(laser.direction, delta * 60 * 70);
+      return laser.position.distanceTo(position.current) < 5000;
+    });
+
+    if (laserGroup.current) {
+      while (laserGroup.current.children.length < lasers.current.length) {
+        const group = new THREE.Group();
+        group.add(new THREE.Mesh(coreGeometry, coreMaterial));
+        group.add(new THREE.Mesh(glowGeometry, laserGlowMaterial));
+        laserGroup.current.add(group);
+      }
+
+      while (laserGroup.current.children.length > lasers.current.length) {
+        const child = laserGroup.current.children[laserGroup.current.children.length - 1];
+        if (child) {
+          laserGroup.current.remove(child);
+        }
+      }
+
+      for (let index = 0; index < lasers.current.length; index += 1) {
+        const laser = lasers.current[index];
+        const group = laserGroup.current.children[index] as THREE.Group;
+
+        group.position.copy(laser.position);
+        const target = laser.position.clone().add(laser.direction);
+        group.lookAt(target);
+        group.position.addScaledVector(laser.direction, 75);
+      }
+    }
+
+    const isBoosting = keys.current.shift;
+    const spawnCount = isBoosting ? 3 : 0;
+
+    for (let i = 0; i < spawnCount; i++) {
+      const offset = new THREE.Vector3((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.5, 3);
+      offset.applyEuler(rotation.current);
+      const spawnPos = position.current.clone().add(offset);
+      
+      const backward = new THREE.Vector3(0, 0, 1).applyEuler(rotation.current);
+      const spread = new THREE.Vector3((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5);
+      
+      const speed = isBoosting ? Math.random() * 0.8 + 0.8 : Math.random() * 0.3 + 0.2;
+      const initialVel = backward.multiplyScalar(speed).add(spread);
+      
+      smokeRef.current.push({
+        position: spawnPos,
+        velocity: initialVel,
+        scale: isBoosting ? Math.random() * 0.4 + 0.4 : Math.random() * 0.2 + 0.2,
+        life: 0,
+        maxLife: isBoosting ? Math.random() * 0.5 + 0.5 : Math.random() * 0.3 + 0.3,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 5,
+        isBoost: isBoosting,
+      });
+    }
+
+    if (smokeRef.current.length > MAX_SMOKE) {
+      smokeRef.current = smokeRef.current.slice(-MAX_SMOKE);
+    }
+
+    smokeRef.current = smokeRef.current.filter((s) => s.life < s.maxLife);
+
+    if (smokeInstancedMesh.current) {
+      const dummy = new THREE.Object3D();
+      const color = new THREE.Color();
+      for (let i = 0; i < MAX_SMOKE; i++) {
+        if (i < smokeRef.current.length) {
+          const s = smokeRef.current[i];
+          s.life += delta;
+          s.position.addScaledVector(s.velocity, delta * 60);
+          s.rotation += s.rotationSpeed * delta;
+          
+          const progress = s.life / s.maxLife;
+          const currentScale = s.scale * (1 + progress * 2);
+          
+          dummy.position.copy(s.position);
+          dummy.rotation.set(s.rotation, s.rotation, s.rotation);
+          dummy.scale.setScalar(currentScale);
+          dummy.updateMatrix();
+          smokeInstancedMesh.current.setMatrixAt(i, dummy.matrix);
+          
+          if (s.isBoost) {
+            color.setHSL(0.55, 1.0, Math.max(0, 0.8 - progress * 0.8));
+          } else {
+            color.setHSL(0, 0, Math.max(0, 0.4 - progress * 0.4));
+          }
+          smokeInstancedMesh.current.setColorAt(i, color);
+        } else {
+          dummy.scale.setScalar(0);
+          dummy.updateMatrix();
+          smokeInstancedMesh.current.setMatrixAt(i, dummy.matrix);
+        }
+      }
+      smokeInstancedMesh.current.instanceMatrix.needsUpdate = true;
+      if (smokeInstancedMesh.current.instanceColor) {
+        smokeInstancedMesh.current.instanceColor.needsUpdate = true;
+      }
+    }
   });
 
   return (
     <>
       <primitive ref={ref} object={scene} scale={0.1} />
       <CameraController ship={ref} rotation={rotation} />
-      {lasers.map((laser) => {
-        const positions = new Float32Array([
-          laser.position.x,
-          laser.position.y,
-          laser.position.z,
-          laser.position.x + laser.direction.x * 50,
-          laser.position.y + laser.direction.y * 50,
-          laser.position.z + laser.direction.z * 50,
-        ]);
-        return (
-          <line key={laser.id}>
-            <bufferGeometry>
-              <bufferAttribute
-                attach="attributes-position"
-                args={[positions, 3]}
-              />
-            </bufferGeometry>
-            <lineBasicMaterial color="red" />
-          </line>
-        );
-      })}
+      <group ref={laserGroup} />
+      <instancedMesh ref={smokeInstancedMesh} args={[smokeGeometry, smokeMaterial, MAX_SMOKE]} />
     </>
   );
 }

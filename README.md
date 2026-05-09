@@ -6,10 +6,14 @@ A 3D space RPG game in development, using React, Threejs, TS(X)/JS, HTML and CSS
 + S for backward steer
 + A for left steer
 + D for right steer
-+ Q for upward steer
-+ E for downward steer
-+ &#8592; for left/anticlockwise turn
-+ &#8594; for right/clockwise turn
++ Q for left pivot turn
++ E for right pivot turn
++ &#8592; for left/anticlockwise roll
++ &#8594; for right/clockwise roll
++ &#8593; for up steer
++ &#8595; for down steer
++ Shift for boost
++ Space for laser shoot
 
 ## Credit for resources:
 + Spaceship by Quaternius (https://poly.pizza/m/uCeLfsdmNP)

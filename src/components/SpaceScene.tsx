@@ -6,7 +6,52 @@ import Ship from "./Ship";
 import Planet from "./Planet";
 import Star from "./Star";
 import Asteroid from "./Asteroid";
-import { generateGalaxy } from "../types/starSystem";
+import { generateGalaxy } from "../generators/starSystem";
+
+function GalaxyFog({ seed }: { seed: number }) {
+  const fogTexture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+      gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+      gradient.addColorStop(0.3, "rgba(255, 255, 255, 0.6)");
+      gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 512, 512);
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
+  }, []);
+
+  const colors = ["#ff4444", "#4488ff", "#ff44ff", "#44ff88", "#ffff44"];
+  const color = colors[Math.floor(seed) % colors.length];
+  const fogCount = 12;
+  const scale = 3000; 
+
+  const random = (s: number) => {
+    return Math.sin(s * 12.9898) * 43758.5453 - Math.floor(Math.sin(s * 12.9898) * 43758.5453);
+  };
+
+  return (
+    <group>
+      {Array.from({ length: fogCount }).map((_, i) => {
+        const x = (random(seed + i * 1.1) - 0.5) * scale * 0.4;
+        const y = (random(seed + i * 1.2) - 0.5) * scale * 0.2;
+        const z = (random(seed + i * 1.3) - 0.5) * scale * 0.4;
+        const s = scale * (0.8 + random(seed + i * 1.4) * 0.6);
+        return (
+          <sprite key={i} position={[x, y, z]} scale={[s, s, 1]}>
+            <spriteMaterial map={fogTexture} color={color} transparent blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.8} />
+          </sprite>
+        );
+      })}
+    </group>
+  );
+}
 
 export default function SpaceScene() {
   const shipPos = useRef(new THREE.Vector3(0, 8, 28));
@@ -15,7 +60,7 @@ export default function SpaceScene() {
   const galaxy = useMemo(() => generateGalaxy(), []);
 
   return (
-    <Canvas camera={{ position: [0, 18, 42], fov: 60 }}>
+    <Canvas camera={{ position: [0, 18, 42], fov: 60, far: 10000 }}>
       <ambientLight intensity={0.55} />
       <directionalLight position={[40, 40, 20]} intensity={1.2} />
       <directionalLight position={[-30, 15, -60]} intensity={0.8} />
@@ -24,6 +69,7 @@ export default function SpaceScene() {
 
       {galaxy.map((item) => (
         <group key={item.system.seed} position={item.position}>
+          <GalaxyFog seed={item.system.seed} />
           <Star star={item.system.star} />
           {item.system.planets.map((planet) => (
             <Planet key={planet.id} planet={planet} center={[0, 0, 0]} />
