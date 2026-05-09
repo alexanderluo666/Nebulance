@@ -1,5 +1,5 @@
 # Nebulance
-A 3D space RGP game in development, using React, Threejs, TS(X)/JS, HTML and CSS.
+A 3D space RPG game in development, using React, Threejs, TS(X)/JS, HTML and CSS.
 
 ## Ship Controls
 + W for forward
