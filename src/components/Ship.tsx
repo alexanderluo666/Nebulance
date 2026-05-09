@@ -53,6 +53,7 @@ export default function Ship({ position, rotation }: { position: React.RefObject
   const mouseSensitivity = 0.002;
   const [mouseDeltaX, setMouseDeltaX] = useState(0);
   const [mouseDeltaY, setMouseDeltaY] = useState(0);
+  const [lasers, setLasers] = useState<{id: number, position: THREE.Vector3, direction: THREE.Vector3}[]>([]);
 
   const { scene } = useGLTF(spaceshipUrl);
 
@@ -72,6 +73,16 @@ export default function Ship({ position, rotation }: { position: React.RefObject
 
       if (e.key === "ArrowLeft") keys.current.left = true;
       if (e.key === "ArrowRight") keys.current.right = true;
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        const newLaser = {
+          id: Date.now(),
+          position: position.current.clone(),
+          direction: new THREE.Vector3(0, 0, -1).applyEuler(rotation.current),
+        };
+        setLasers((prev) => [...prev, newLaser]);
+      }
     };
 
     const up = (e: KeyboardEvent) => {
@@ -97,14 +108,14 @@ export default function Ship({ position, rotation }: { position: React.RefObject
       lastMouseY = e.clientY;
     };
 
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
-    window.addEventListener("mousemove", move);
+    document.addEventListener("keydown", down);
+    document.addEventListener("keyup", up);
+    document.addEventListener("mousemove", move);
 
     return () => {
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
-      window.removeEventListener("mousemove", move);
+      document.removeEventListener("keydown", down);
+      document.removeEventListener("keyup", up);
+      document.removeEventListener("mousemove", move);
     };
   }, []);
 
@@ -155,12 +166,42 @@ export default function Ship({ position, rotation }: { position: React.RefObject
     position.current.addScaledVector(velocity.current, delta * 60);
     ref.current.position.copy(position.current);
     ref.current.rotation.copy(rotation.current);
+
+    setLasers((prev) =>
+      prev
+        .map((laser) => {
+          laser.position.addScaledVector(laser.direction, delta * 60 * 100); // laser speed
+          return laser;
+        })
+        .filter((laser) => laser.position.length() < 2000)
+    );
   });
 
   return (
     <>
       <primitive ref={ref} object={scene} scale={0.1} />
       <CameraController ship={ref} rotation={rotation} />
+      {lasers.map((laser) => {
+        const positions = new Float32Array([
+          laser.position.x,
+          laser.position.y,
+          laser.position.z,
+          laser.position.x + laser.direction.x * 50,
+          laser.position.y + laser.direction.y * 50,
+          laser.position.z + laser.direction.z * 50,
+        ]);
+        return (
+          <line key={laser.id}>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                args={[positions, 3]}
+              />
+            </bufferGeometry>
+            <lineBasicMaterial color="red" />
+          </line>
+        );
+      })}
     </>
   );
 }

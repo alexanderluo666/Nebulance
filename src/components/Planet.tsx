@@ -1,35 +1,15 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-
-type PlanetType =
-  | "Desert"
-  | "Ice"
-  | "Ocean"
-  | "Lava"
-  | "Gas giant"
-  | "Dead moon"
-  | "Forest"
-  | "Toxic";
-
-type MoonData = {
-  size: number;
-  distance: number;
-  speed: number;
-  color: string;
-  initialAngle: number;
-};
+import type { Planet as PlanetData, Moon as MoonData } from "../types/starSystem";
+import { computeOrbitPosition } from "../systems/orbit";
 
 type PlanetProps = {
-  position: [number, number, number];
-  size: number;
-  type: PlanetType;
-  rotationSpeed: number;
-  moons: MoonData[];
-  seed: number;
+  planet: PlanetData;
+  center: [number, number, number];
 };
 
-const typeConfig: Record<PlanetType, { color: string; atmosphere: string; roughness: number; metalness: number; terrain: number; emissive: string }> = {
+const typeConfig: Record<PlanetData["type"], { color: string; atmosphere: string; roughness: number; metalness: number; terrain: number; emissive: string }> = {
   Desert: { color: "#d9b27c", atmosphere: "#f4d5a2", roughness: 0.8, metalness: 0.05, terrain: 0.18, emissive: "#000000" },
   Ice: { color: "#cce7ff", atmosphere: "#9dd7ff", roughness: 0.6, metalness: 0.03, terrain: 0.08, emissive: "#bfe8ff" },
   Ocean: { color: "#1a66cc", atmosphere: "#72b1ff", roughness: 0.3, metalness: 0.1, terrain: 0.05, emissive: "#3465ff" },
@@ -44,7 +24,7 @@ function noise(seed: number) {
   return Math.sin(seed * 12.9898) * 43758.5453 - Math.floor(Math.sin(seed * 12.9898) * 43758.5453);
 }
 
-function createTerrainGeometry(size: number, type: PlanetType, seed: number) {
+function createTerrainGeometry(size: number, type: PlanetData["type"], seed: number) {
   const geometry = new THREE.SphereGeometry(size, 64, 64);
   const position = geometry.attributes.position as THREE.BufferAttribute;
   const vertex = new THREE.Vector3();
@@ -68,19 +48,21 @@ function createTerrainGeometry(size: number, type: PlanetType, seed: number) {
   return geometry;
 }
 
-function Moon({ parentPosition, moon }: { parentPosition: [number, number, number]; moon: MoonData }) {
+function Moon({ parentRef, moon }: { parentRef: React.RefObject<THREE.Mesh>; moon: MoonData }) {
   const ref = useRef<THREE.Mesh>(null!);
-  const angle = useRef(moon.initialAngle);
+  const phaseRef = useRef(moon.phase);
 
   useFrame((_, delta) => {
-    if (!ref.current) return;
+    if (!ref.current || !parentRef.current) return;
 
-    angle.current += moon.speed * delta;
-    ref.current.position.set(
-      parentPosition[0] + Math.cos(angle.current) * moon.distance,
-      parentPosition[1] + moon.distance * 0.18,
-      parentPosition[2] + Math.sin(angle.current) * moon.distance
+    phaseRef.current += (Math.PI * 2 * delta) / moon.orbitalPeriod;
+    const localPosition = new THREE.Vector3(
+      Math.cos(phaseRef.current) * moon.orbitalRadius,
+      Math.sin(phaseRef.current * 0.5) * moon.orbitalRadius * 0.15,
+      Math.sin(phaseRef.current) * moon.orbitalRadius
     );
+    localPosition.applyAxisAngle(new THREE.Vector3(1, 0, 0), moon.inclination);
+    ref.current.position.copy(parentRef.current.position.clone().add(localPosition));
     ref.current.rotation.y += 0.02;
   });
 
@@ -92,26 +74,31 @@ function Moon({ parentPosition, moon }: { parentPosition: [number, number, numbe
   );
 }
 
-export default function Planet({ position, size, type, rotationSpeed, moons, seed }: PlanetProps) {
+export default function Planet({ planet, center }: PlanetProps) {
   const meshRef = useRef<THREE.Mesh>(null!);
-  const geometry = useMemo(() => createTerrainGeometry(size, type, seed), [size, type, seed]);
-  const config = typeConfig[type];
+  const phaseRef = useRef(planet.phase);
+  const geometry = useMemo(() => createTerrainGeometry(planet.size, planet.type, planet.seed), [planet.size, planet.type, planet.seed]);
+  const config = typeConfig[planet.type];
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!meshRef.current) return;
-    meshRef.current.rotation.y += rotationSpeed;
+
+    phaseRef.current += planet.orbitalSpeed * delta;
+    const orbitPosition = computeOrbitPosition(center, planet.orbitalRadius, phaseRef.current, planet.inclination);
+    meshRef.current.position.copy(orbitPosition);
+    meshRef.current.rotation.y += planet.rotationSpeed;
   });
 
   return (
-    <group position={position}>
+    <group>
       <mesh ref={meshRef} geometry={geometry}>
         <meshStandardMaterial color={config.color} roughness={config.roughness} metalness={config.metalness} emissive={config.emissive} />
       </mesh>
       <mesh geometry={geometry.clone()} scale={1.08}>
         <meshBasicMaterial color={config.atmosphere} transparent opacity={0.18} side={THREE.BackSide} />
       </mesh>
-      {moons.map((moon, index) => (
-        <Moon key={index} parentPosition={position} moon={moon} />
+      {planet.moons.map((moon) => (
+        <Moon key={moon.id} parentRef={meshRef} moon={moon} />
       ))}
     </group>
   );
