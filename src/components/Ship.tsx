@@ -229,7 +229,9 @@ export default function Ship({ position, rotation }: { position: React.RefObject
     }
 
     const isBoosting = keys.current.shift;
-    const spawnCount = isBoosting ? 3 : 0;
+    
+    let spawnCount = 0;
+    if (isBoosting) spawnCount = 3;
 
     for (let i = 0; i < spawnCount; i++) {
       const offset = new THREE.Vector3((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.5, 3);

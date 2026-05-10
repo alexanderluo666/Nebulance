@@ -8,7 +8,7 @@ import Star from "./Star";
 import Asteroid from "./Asteroid";
 import { generateGalaxy } from "../generators/starSystem";
 
-function GalaxyFog({ seed }: { seed: number }) {
+function GalaxyFog({ seed }: { seed: string }) {
   const fogTexture = useMemo(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
@@ -16,8 +16,8 @@ function GalaxyFog({ seed }: { seed: number }) {
     const ctx = canvas.getContext("2d");
     if (ctx) {
       const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
-      gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
-      gradient.addColorStop(0.3, "rgba(255, 255, 255, 0.6)");
+      gradient.addColorStop(0, "rgba(255, 255, 255, 0.4)");
+      gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.1)");
       gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 512, 512);
@@ -27,10 +27,11 @@ function GalaxyFog({ seed }: { seed: number }) {
     return tex;
   }, []);
 
-  const colors = ["#ff4444", "#4488ff", "#ff44ff", "#44ff88", "#ffff44"];
-  const color = colors[Math.floor(seed) % colors.length];
-  const fogCount = 12;
-  const scale = 3000; 
+  const numSeed = useMemo(() => seed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0), [seed]);
+
+  const colors = ["#5511aa", "#1188aa", "#770088", "#0099aa", "#440077"];
+  const fogCount = 8;
+  const scale = 1400; 
 
   const random = (s: number) => {
     return Math.sin(s * 12.9898) * 43758.5453 - Math.floor(Math.sin(s * 12.9898) * 43758.5453);
@@ -39,13 +40,14 @@ function GalaxyFog({ seed }: { seed: number }) {
   return (
     <group>
       {Array.from({ length: fogCount }).map((_, i) => {
-        const x = (random(seed + i * 1.1) - 0.5) * scale * 0.4;
-        const y = (random(seed + i * 1.2) - 0.5) * scale * 0.2;
-        const z = (random(seed + i * 1.3) - 0.5) * scale * 0.4;
-        const s = scale * (0.8 + random(seed + i * 1.4) * 0.6);
+        const x = (random(numSeed + i * 1.1) - 0.5) * scale * 0.5;
+        const y = (random(numSeed + i * 1.2) - 0.5) * scale * 0.2;
+        const z = (random(numSeed + i * 1.3) - 0.5) * scale * 0.5;
+        const s = scale * (0.6 + random(numSeed + i * 1.4) * 0.4);
+        const spriteColor = colors[(numSeed + i) % colors.length];
         return (
           <sprite key={i} position={[x, y, z]} scale={[s, s, 1]}>
-            <spriteMaterial map={fogTexture} color={color} transparent blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.8} />
+            <spriteMaterial map={fogTexture} color={spriteColor} transparent blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.6} />
           </sprite>
         );
       })}
