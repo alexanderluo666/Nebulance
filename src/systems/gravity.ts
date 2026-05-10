@@ -40,7 +40,7 @@ class GravitySystem {
   getGravityForce(shipPos: THREE.Vector3, delta: number): THREE.Vector3 {
     let gravityForce = new THREE.Vector3();
     
-    this.bodies.forEach((pData) => {
+    for (const pData of this.bodies.values()) {
       const dist = shipPos.distanceTo(pData.position);
       
       // Only apply gravity if within 15x planet radius, and outside the solid core
@@ -50,7 +50,7 @@ class GravitySystem {
         const forceMag = (pData.size * 5) / (dist * dist);
         gravityForce.add(dir.multiplyScalar(forceMag * delta));
       }
-    });
+    }
 
     return gravityForce;
   }
@@ -60,14 +60,14 @@ class GravitySystem {
     let nearestPlanet: RegisteredBody | null = null;
     let nearestDist = Infinity;
 
-    this.bodies.forEach((pData) => {
-      if (pData.isStar) return; // Ignore star atmospheres for now
+    for (const pData of this.bodies.values()) {
+      if (pData.isStar) continue; // Ignore star atmospheres for now
       const dist = shipPos.distanceTo(pData.position);
       if (dist < nearestDist) {
         nearestDist = dist;
         nearestPlanet = pData;
       }
-    });
+    }
 
     if (nearestPlanet && nearestPlanet.atmosphereColor && nearestDist < nearestPlanet.size * 4) {
       // ratio: 1 when at surface, 0 when at edge of atmosphere (4x radius)
@@ -87,8 +87,8 @@ class GravitySystem {
   // Dynamic collision avoidance for planets
   resolvePlanetCollisions(id: string, currentPos: THREE.Vector3, size: number): THREE.Vector3 {
     let repulsion = new THREE.Vector3();
-    this.bodies.forEach((pData) => {
-      if (pData.id === id || pData.isStar) return;
+    for (const pData of this.bodies.values()) {
+      if (pData.id === id || pData.isStar) continue;
       const dist = currentPos.distanceTo(pData.position);
       const minSafeDist = size + pData.size + 10; // 10 unit buffer
       if (dist < minSafeDist && dist > 0) {
@@ -97,7 +97,7 @@ class GravitySystem {
         // Soft push apart
         repulsion.add(pushDir.multiplyScalar(overlap * 0.1));
       }
-    });
+    }
     return repulsion;
   }
 
@@ -105,7 +105,7 @@ class GravitySystem {
   getLandingFeel(shipPos: THREE.Vector3) {
     const state = this.getAtmosphereState(shipPos);
     
-    if (state.inAtmosphere && state.ratio > 0.7) {
+    if (state.inAtmosphere && state.ratio !== undefined && state.ratio > 0.7) {
       // 0.7 to 1.0 (approaching surface) -> heavier controls
       const intensity = (state.ratio - 0.7) / 0.3; // 0 to 1
       
@@ -124,13 +124,13 @@ class GravitySystem {
   checkShipCollision(shipPos: THREE.Vector3, shipRadius: number) {
     let collisionNormal: THREE.Vector3 | null = null;
     let overlap = 0;
-    this.bodies.forEach((pData) => {
+    for (const pData of this.bodies.values()) {
       const dist = shipPos.distanceTo(pData.position);
       if (dist < pData.size + shipRadius) {
         collisionNormal = shipPos.clone().sub(pData.position).normalize();
         overlap = (pData.size + shipRadius) - dist;
       }
-    });
+    }
     return { collisionNormal, overlap };
   }
 
