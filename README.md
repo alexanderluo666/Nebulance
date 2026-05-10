@@ -1,6 +1,5 @@
 # Nebulance
 A 3D space RPG game in development, using React, Threejs, TS(X)/JS, HTML and CSS.
-![Logo](./public/favicon.svg)
 
 ## Purpose And Vision
 + Name inspiration taken from Nebula(Star clouds) + Balance &#8594; Nebu-lance.
@@ -28,3 +27,5 @@ A 3D space RPG game in development, using React, Threejs, TS(X)/JS, HTML and CSS
 + Spaceship by Quaternius (https://poly.pizza/m/uCeLfsdmNP)
 + Asteroid by Poly by Google [CC-BY] (https://creativecommons.org/licenses/by/3.0/) via Poly Pizza (https://poly.pizza/m/enaIlQWET9a)
 + SVG icon by SVGAI (https://www.svgai.org/)
+
+![Logo](./public/favicon.svg)
