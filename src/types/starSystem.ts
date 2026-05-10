@@ -34,6 +34,8 @@ export type Planet = {
   phase: number;
   seed: number;
   moons: Moon[];
+  hasRings: boolean;
+  ringColor: string;
 };
 
 export type AsteroidBelt = {

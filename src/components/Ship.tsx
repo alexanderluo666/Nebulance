@@ -81,6 +81,9 @@ export default function Ship({ position, rotation }: { position: React.RefObject
   const velocity = useRef(new THREE.Vector3(0, 0, 0));
   const tempAccel = useRef(new THREE.Vector3(0, 0, 0));
   const lasers = useRef<Laser[]>([]);
+  const savedEnergy = localStorage.getItem("nebulance_energy");
+  const energyRef = useRef(savedEnergy ? parseFloat(savedEnergy) : 100);
+  const boostCooldown = useRef(energyRef.current <= 0);
   const keys = useRef<InputKeys>({
     w: false,
     a: false,
@@ -142,17 +145,50 @@ export default function Ship({ position, rotation }: { position: React.RefObject
     document.addEventListener("keydown", down);
     document.addEventListener("keyup", up);
 
+    const saveInterval = setInterval(() => {
+      if (position.current && rotation.current) {
+        localStorage.setItem("nebulance_shipPos", JSON.stringify(position.current));
+        localStorage.setItem("nebulance_shipRot", JSON.stringify(rotation.current));
+        localStorage.setItem("nebulance_energy", energyRef.current.toString());
+      }
+    }, 1000);
+
     return () => {
       document.removeEventListener("keydown", down);
       document.removeEventListener("keyup", up);
+      clearInterval(saveInterval);
     };
   }, []);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (!ref.current || !position.current || !rotation.current) return;
 
-    const accelerationStrength = keys.current.shift ? 0.04 : 0.014;
-    const maxSpeed = keys.current.shift ? 1.8 : 0.65;
+    let isBoosting = keys.current.shift && !boostCooldown.current;
+
+    if (isBoosting) {
+      energyRef.current -= delta * 30;
+      if (energyRef.current <= 0) {
+        energyRef.current = 0;
+        boostCooldown.current = true;
+        isBoosting = false;
+      }
+    } else {
+      energyRef.current += delta * 15;
+      if (energyRef.current >= 100) {
+        energyRef.current = 100;
+        boostCooldown.current = false;
+      }
+    }
+
+    const energyBar = document.getElementById("energy-bar-fill");
+    if (energyBar) {
+      energyBar.style.width = `${energyRef.current}%`;
+      energyBar.style.backgroundColor = boostCooldown.current ? "#ff4444" : "#00ffff";
+      energyBar.style.boxShadow = boostCooldown.current ? "0 0 10px #ff4444" : "0 0 10px #00ffff";
+    }
+
+    const accelerationStrength = isBoosting ? 0.04 : 0.014;
+    const maxSpeed = isBoosting ? 1.8 : 0.65;
     const rollSpeed = 0.06;
     const turnSpeed = 0.04;
 
@@ -188,6 +224,28 @@ export default function Ship({ position, rotation }: { position: React.RefObject
       velocity.current.addScaledVector(tempAccel.current, delta * 60);
     }
 
+    let gravityForce = new THREE.Vector3();
+    let nearestPlanet: any = null;
+    let nearestDist = Infinity;
+
+    if ((window as any).activePlanets) {
+      (window as any).activePlanets.forEach((pData: any) => {
+        const dist = position.current.distanceTo(pData.position);
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearestPlanet = pData;
+        }
+        
+        if (dist < pData.size * 15 && dist > pData.size) {
+          const dir = pData.position.clone().sub(position.current).normalize();
+          const forceMag = (pData.size * 5) / (dist * dist);
+          gravityForce.add(dir.multiplyScalar(forceMag * delta));
+        }
+      });
+    }
+
+    velocity.current.add(gravityForce);
+
     velocity.current.multiplyScalar(0.98);
     if (velocity.current.length() > maxSpeed) {
       velocity.current.setLength(maxSpeed);
@@ -196,6 +254,18 @@ export default function Ship({ position, rotation }: { position: React.RefObject
     position.current.addScaledVector(velocity.current, delta * 60);
     ref.current.position.copy(position.current);
     ref.current.rotation.copy(rotation.current);
+
+    if (state.scene.fog instanceof THREE.Fog) {
+      if (nearestPlanet && nearestDist < nearestPlanet.size * 3) {
+         state.scene.fog.color.lerp(new THREE.Color(nearestPlanet.atmosphere), 0.05);
+         state.scene.fog.near = THREE.MathUtils.lerp(state.scene.fog.near, Math.max(10, nearestDist - nearestPlanet.size * 1.5), 0.05);
+         state.scene.fog.far = THREE.MathUtils.lerp(state.scene.fog.far, nearestPlanet.size * 6, 0.05);
+      } else {
+         state.scene.fog.color.lerp(new THREE.Color("#000000"), 0.02);
+         state.scene.fog.near = THREE.MathUtils.lerp(state.scene.fog.near, 100, 0.02);
+         state.scene.fog.far = THREE.MathUtils.lerp(state.scene.fog.far, 10000, 0.02);
+      }
+    }
 
     lasers.current = lasers.current.filter((laser) => {
       laser.position.addScaledVector(laser.direction, delta * 60 * 70);
@@ -228,8 +298,6 @@ export default function Ship({ position, rotation }: { position: React.RefObject
       }
     }
 
-    const isBoosting = keys.current.shift;
-    
     let spawnCount = 0;
     if (isBoosting) spawnCount = 3;
 

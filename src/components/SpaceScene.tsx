@@ -11,16 +11,16 @@ import { generateGalaxy } from "../generators/starSystem";
 function GalaxyFog({ seed }: { seed: string }) {
   const fogTexture = useMemo(() => {
     const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 256;
+    canvas.height = 256;
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+      const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
       gradient.addColorStop(0, "rgba(255, 255, 255, 0.4)");
       gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.1)");
       gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
       ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 512, 512);
+      ctx.fillRect(0, 0, 256, 256);
     }
     const tex = new THREE.CanvasTexture(canvas);
     tex.needsUpdate = true;
@@ -30,8 +30,8 @@ function GalaxyFog({ seed }: { seed: string }) {
   const numSeed = useMemo(() => seed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0), [seed]);
 
   const colors = ["#5511aa", "#1188aa", "#770088", "#0099aa", "#440077"];
-  const fogCount = 8;
-  const scale = 1400; 
+  const fogCount = 6;
+  const scale = 1000; 
 
   const random = (s: number) => {
     return Math.sin(s * 12.9898) * 43758.5453 - Math.floor(Math.sin(s * 12.9898) * 43758.5453);
@@ -55,14 +55,21 @@ function GalaxyFog({ seed }: { seed: string }) {
   );
 }
 
-export default function SpaceScene() {
-  const shipPos = useRef(new THREE.Vector3(0, 8, 28));
-  const shipRot = useRef(new THREE.Euler(0, 0, 0));
+export default function SpaceScene({ worldSeed }: { worldSeed: string }) {
+  const savedPos = localStorage.getItem("nebulance_shipPos");
+  const savedRot = localStorage.getItem("nebulance_shipRot");
 
-  const galaxy = useMemo(() => generateGalaxy(), []);
+  const initialPos = savedPos ? JSON.parse(savedPos) : { x: 0, y: 8, z: 28 };
+  const initialRot = savedRot ? JSON.parse(savedRot) : { _x: 0, _y: 0, _z: 0 };
+
+  const shipPos = useRef(new THREE.Vector3(initialPos.x, initialPos.y, initialPos.z));
+  const shipRot = useRef(new THREE.Euler(initialRot._x, initialRot._y, initialRot._z));
+
+  const galaxy = useMemo(() => generateGalaxy(worldSeed), [worldSeed]);
 
   return (
     <Canvas camera={{ position: [0, 18, 42], fov: 60, far: 10000 }}>
+      <fog attach="fog" args={["#000000", 100, 10000]} />
       <ambientLight intensity={0.55} />
       <directionalLight position={[40, 40, 20]} intensity={1.2} />
       <directionalLight position={[-30, 15, -60]} intensity={0.8} />
@@ -74,7 +81,7 @@ export default function SpaceScene() {
           <GalaxyFog seed={item.system.seed} />
           <Star star={item.system.star} />
           {item.system.planets.map((planet) => (
-            <Planet key={planet.id} planet={planet} center={[0, 0, 0]} />
+            <Planet key={planet.id} planet={planet} center={[0, 0, 0]} systemPosition={item.position} />
           ))}
           {item.system.asteroidBelts.map((belt) => (
             <Asteroid key={belt.id} belt={belt} center={[0, 0, 0]} />

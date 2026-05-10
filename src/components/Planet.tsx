@@ -7,6 +7,7 @@ import { computeOrbitPosition } from "../systems/orbit";
 type PlanetProps = {
   planet: PlanetData;
   center: [number, number, number];
+  systemPosition?: [number, number, number];
 };
 
 const typeConfig: Record<PlanetData["type"], { color: string; atmosphere: string; roughness: number; metalness: number; terrain: number; emissive: string }> = {
@@ -74,7 +75,7 @@ function Moon({ parentRef, moon }: { parentRef: React.RefObject<THREE.Mesh>; moo
   );
 }
 
-export default function Planet({ planet, center }: PlanetProps) {
+export default function Planet({ planet, center, systemPosition = [0,0,0] }: PlanetProps) {
   const meshRef = useRef<THREE.Mesh>(null!);
   const phaseRef = useRef(planet.phase);
   const geometry = useMemo(() => createTerrainGeometry(planet.size, planet.type, planet.seed), [planet.size, planet.type, planet.seed]);
@@ -87,6 +88,14 @@ export default function Planet({ planet, center }: PlanetProps) {
     const orbitPosition = computeOrbitPosition(center, planet.orbitalRadius, phaseRef.current, planet.inclination);
     meshRef.current.position.copy(orbitPosition);
     meshRef.current.rotation.y += planet.rotationSpeed;
+
+    const worldPos = new THREE.Vector3(systemPosition[0], systemPosition[1], systemPosition[2]).add(orbitPosition);
+    if (!(window as any).activePlanets) (window as any).activePlanets = new Map();
+    (window as any).activePlanets.set(`${planet.seed}`, { 
+       position: worldPos, 
+       size: planet.size, 
+       atmosphere: config.atmosphere 
+    });
   });
 
   return (
@@ -97,6 +106,12 @@ export default function Planet({ planet, center }: PlanetProps) {
       <mesh geometry={geometry.clone()} scale={1.08}>
         <meshBasicMaterial color={config.atmosphere} transparent opacity={0.18} side={THREE.BackSide} />
       </mesh>
+      {planet.hasRings && (
+        <mesh rotation={[Math.PI / 2 + 0.2, 0, 0]}>
+          <ringGeometry args={[planet.size * 1.5, planet.size * 2.2, 64]} />
+          <meshStandardMaterial color={planet.ringColor} side={THREE.DoubleSide} transparent opacity={0.6} />
+        </mesh>
+      )}
       {planet.moons.map((moon) => (
         <Moon key={moon.id} parentRef={meshRef} moon={moon} />
       ))}
