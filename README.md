@@ -8,7 +8,7 @@ A 3D space RPG game in development, using React, Threejs, TS(X)/JS, HTML and CSS
 + Third 3D game, first proper 3D game. (View: https://github.com/alexanderluo666/Riftfall/tree/archive/ ; https://github.com/alexanderluo666/Velion/)
 + Focuses on storytelling, gameplay and game vibe
 
-## Ship Controls
+## Ship Controls For Basic Ship
 + W for forward steer
 + S for backward steer
 + A for left steer
@@ -20,7 +20,7 @@ A 3D space RPG game in development, using React, Threejs, TS(X)/JS, HTML and CSS
 + &#8593; for up steer
 + &#8595; for down steer
 + Shift for boost
-+ Space for laser shoot
++ Space for laser beam shoot
 
 ## Credit for resources
 + Spaceship by Quaternius (https://poly.pizza/m/uCeLfsdmNP)
