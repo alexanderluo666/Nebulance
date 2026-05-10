@@ -1,6 +1,13 @@
 # Nebulance
 A 3D space RPG game in development, using React, Threejs, TS(X)/JS, HTML and CSS.
 
+## Purpose And Vision
++ To build a game from scratch while learning React, Threejs, Nodejs, TS(X), HTML and CSS.
++ Influenced by notable game titles: EVE Online, Star Citizen.
++ Using low-poly stylized models, such as ones from https://poly.pizza/.
++ Third 3D game, first proper 3D game. (View: https://github.com/alexanderluo666/Riftfall/tree/archive/ ; https://github.com/alexanderluo666/Velion/)
++ Focues on storytelling, gameplay and game vibe
+
 ## Ship Controls
 + W for forward steer
 + S for backward steer
@@ -15,7 +22,7 @@ A 3D space RPG game in development, using React, Threejs, TS(X)/JS, HTML and CSS
 + Shift for boost
 + Space for laser shoot
 
-## Credit for resources:
+## Credit for resources
 + Spaceship by Quaternius (https://poly.pizza/m/uCeLfsdmNP)
 + Asteroid by Poly by Google [CC-BY] (https://creativecommons.org/licenses/by/3.0/) via Poly Pizza (https://poly.pizza/m/enaIlQWET9a)
 + SVG icon by SVGAI (https://www.svgai.org/)
