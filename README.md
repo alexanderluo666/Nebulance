@@ -6,8 +6,8 @@
 + Name inspiration taken from Nebula(Star clouds) + Balance &#8594; Nebu-lance.
 + To build a game from scratch while learning React, Threejs, Nodejs, TS(X), HTML and CSS.
 + Influenced by notable game titles: EVE Online, Star Citizen.
-+ Using low-poly stylized models, such as ones from [poly models](https://poly.pizza/).
-+ Third 3D game, first proper 3D game. (View: [First3DGame/First3DGameIdea](https://github.com/alexanderluo666/Riftfall/tree/archive/) ; [Second3DGame](https://github.com/alexanderluo666/Velion/).
++ Using low-poly stylized models, such as ones from [Poly Pizza](https://poly.pizza/).
++ First properly made and maintained 3D game of mine.
 + Focuses on storytelling, gameplay and game vibe.
 
 ## Ship Controls For Basic Ship
