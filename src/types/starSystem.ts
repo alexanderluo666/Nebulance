@@ -36,6 +36,7 @@ export type Planet = {
   moons: Moon[];
   hasRings: boolean;
   ringColor: string;
+  ringAccent?: string;
 };
 
 export type AsteroidBelt = {

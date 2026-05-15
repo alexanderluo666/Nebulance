@@ -5,6 +5,7 @@ import type { Planet as PlanetData, Moon as MoonData } from "../types/starSystem
 import { computeOrbitPosition } from "../systems/orbit";
 import { gravitySystem } from "../systems/gravity";
 import { deformGeometry } from "../systems/deformation";
+import PlanetRings from "./PlanetRings";
 
 type PlanetProps = {
   planet: PlanetData;
@@ -113,7 +114,16 @@ export default function Planet({ planet, center, systemPosition = [0,0,0] }: Pla
   return (
     <group>
       <mesh ref={meshRef} geometry={geometry}>
-        <meshStandardMaterial color={config.color} roughness={config.roughness} metalness={config.metalness} emissive={config.emissive} />
+        <meshStandardMaterial
+          color={config.color}
+          roughness={config.roughness}
+          metalness={config.metalness}
+          emissive={config.emissive}
+          emissiveIntensity={0.35}
+        />
+        {planet.hasRings && (
+          <PlanetRings size={planet.size} ringColor={planet.ringColor} ringAccent={planet.ringAccent} />
+        )}
       </mesh>
       <mesh geometry={geometry.clone()} scale={1.05}>
         <meshBasicMaterial color={config.atmosphere} transparent opacity={0.25} side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} />
@@ -121,12 +131,6 @@ export default function Planet({ planet, center, systemPosition = [0,0,0] }: Pla
       <mesh geometry={geometry.clone()} scale={1.2}>
         <meshBasicMaterial color={config.atmosphere} transparent opacity={0.08} side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
-      {planet.hasRings && (
-        <mesh rotation={[Math.PI / 2 + 0.2, 0, 0]}>
-          <ringGeometry args={[planet.size * 1.5, planet.size * 2.2, 64]} />
-          <meshStandardMaterial color={planet.ringColor} side={THREE.DoubleSide} transparent opacity={0.6} />
-        </mesh>
-      )}
       {planet.moons.map((moon) => (
         <Moon key={moon.id} parentRef={meshRef} moon={moon} />
       ))}

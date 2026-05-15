@@ -4,6 +4,8 @@ import { useRef, useMemo } from "react";
 import type { Star as StarType } from "../types/starSystem";
 import { gravitySystem } from "../systems/gravity";
 import { deformGeometry } from "../systems/deformation";
+import StarCorona from "./StarCorona";
+import { sceneScaleConfig } from "../data/worldConfig";
 
 type Props = {
   star: StarType;
@@ -12,7 +14,7 @@ type Props = {
 
 export default function Star({ star, systemPosition = [0,0,0] }: Props) {
   const starRef = useRef<THREE.Mesh>(null!);
-  const geometry = useMemo(() => new THREE.SphereGeometry(star.radius, 64, 64), [star.radius]);
+  const geometry = useMemo(() => new THREE.SphereGeometry(star.radius, 24, 24), [star.radius]);
   const starId = `star-${systemPosition[0]}-${systemPosition[1]}`;
 
   useFrame(() => {
@@ -36,14 +38,19 @@ export default function Star({ star, systemPosition = [0,0,0] }: Props) {
 
   return (
     <>
-      <pointLight color={star.color} intensity={star.intensity} distance={300} decay={2} position={star.position} />
+      <pointLight
+        color={star.color}
+        intensity={star.intensity * sceneScaleConfig.starLightIntensityMult}
+        distance={sceneScaleConfig.starLightDistance}
+        decay={sceneScaleConfig.starLightDecay}
+        position={star.position}
+      />
       <mesh ref={starRef} position={star.position} geometry={geometry}>
         <meshBasicMaterial color={star.color} toneMapped={false} />
       </mesh>
-      <mesh position={star.position}>
-        <sphereGeometry args={[star.radius * 2.5, 32, 32]} />
-        <meshBasicMaterial color={star.color} transparent opacity={0.08} side={THREE.BackSide} />
-      </mesh>
+      <group position={star.position}>
+        <StarCorona radius={star.radius} color={star.color} />
+      </group>
     </>
   );
 }

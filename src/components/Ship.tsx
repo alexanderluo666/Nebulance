@@ -4,14 +4,16 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import spaceshipUrl from "../assets/Spaceship.glb?url";
 import { gravitySystem } from "../systems/gravity";
+import { gameAudio } from "../systems/audio";
+import { laserConfig } from "../data/worldConfig";
 
 type InputKeys = {
   w: boolean;
   a: boolean;
   s: boolean;
   d: boolean;
-  q: boolean;
-  e: boolean;
+  z: boolean;
+  c: boolean;
   shift: boolean;
   left: boolean;
   right: boolean;
@@ -21,6 +23,7 @@ type InputKeys = {
 
 type Laser = {
   position: THREE.Vector3;
+  previousPosition: THREE.Vector3;
   direction: THREE.Vector3;
 };
 
@@ -74,7 +77,15 @@ function CameraController({ ship, rotation }: { ship: React.RefObject<THREE.Obje
   return null;
 }
 
-export default function Ship({ position, rotation }: { position: React.RefObject<THREE.Vector3>; rotation: React.RefObject<THREE.Euler> }) {
+export default function Ship({
+  position,
+  rotation,
+  controlsPaused = false,
+}: {
+  position: React.RefObject<THREE.Vector3>;
+  rotation: React.RefObject<THREE.Euler>;
+  controlsPaused?: boolean;
+}) {
   const ref = useRef<THREE.Object3D>(null!);
   const laserGroup = useRef<THREE.Group>(null);
   const smokeInstancedMesh = useRef<THREE.InstancedMesh>(null);
@@ -90,8 +101,8 @@ export default function Ship({ position, rotation }: { position: React.RefObject
     a: false,
     s: false,
     d: false,
-    q: false,
-    e: false,
+    z: false,
+    c: false,
     shift: false,
     left: false,
     right: false,
@@ -103,12 +114,13 @@ export default function Ship({ position, rotation }: { position: React.RefObject
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      gameAudio.onUserGesture();
       if (e.key === "w") keys.current.w = true;
       if (e.key === "s") keys.current.s = true;
       if (e.key === "a") keys.current.a = true;
       if (e.key === "d") keys.current.d = true;
-      if (e.key === "q") keys.current.q = true;
-      if (e.key === "e") keys.current.e = true;
+      if (e.key === "z" || e.key === "Z") keys.current.z = true;
+      if (e.key === "c" || e.key === "C") keys.current.c = true;
 
       if (e.key === "Shift") keys.current.shift = true;
 
@@ -119,11 +131,15 @@ export default function Ship({ position, rotation }: { position: React.RefObject
 
       if (e.code === "Space") {
         e.preventDefault();
+        gameAudio.onUserGesture();
+        const spawn = position.current.clone();
         const newLaser: Laser = {
-          position: position.current.clone(),
+          position: spawn.clone(),
+          previousPosition: spawn.clone(),
           direction: new THREE.Vector3(0, 0, -1).applyEuler(rotation.current).normalize(),
         };
         lasers.current.push(newLaser);
+        gameAudio.playLaser();
       }
     };
 
@@ -132,8 +148,8 @@ export default function Ship({ position, rotation }: { position: React.RefObject
       if (e.key === "s") keys.current.s = false;
       if (e.key === "a") keys.current.a = false;
       if (e.key === "d") keys.current.d = false;
-      if (e.key === "q") keys.current.q = false;
-      if (e.key === "e") keys.current.e = false;
+      if (e.key === "z" || e.key === "Z") keys.current.z = false;
+      if (e.key === "c" || e.key === "C") keys.current.c = false;
 
       if (e.key === "Shift") keys.current.shift = false;
 
@@ -146,6 +162,12 @@ export default function Ship({ position, rotation }: { position: React.RefObject
     document.addEventListener("keydown", down);
     document.addEventListener("keyup", up);
 
+    const onRefuel = () => {
+      energyRef.current = 100;
+      boostCooldown.current = false;
+    };
+    window.addEventListener("nebulance-refuel", onRefuel);
+
     const saveInterval = setInterval(() => {
       if (position.current && rotation.current) {
         localStorage.setItem("nebulance_shipPos", JSON.stringify(position.current));
@@ -157,12 +179,15 @@ export default function Ship({ position, rotation }: { position: React.RefObject
     return () => {
       document.removeEventListener("keydown", down);
       document.removeEventListener("keyup", up);
+      window.removeEventListener("nebulance-refuel", onRefuel);
       clearInterval(saveInterval);
     };
   }, []);
 
   useFrame((state, delta) => {
     if (!ref.current || !position.current || !rotation.current) return;
+
+    if (controlsPaused) return;
 
     let isBoosting = keys.current.shift && !boostCooldown.current;
 
@@ -202,9 +227,9 @@ export default function Ship({ position, rotation }: { position: React.RefObject
       rotation.current.y -= turnSpeed;
     }
 
-    if (keys.current.q) {
+    if (keys.current.z) {
       rotation.current.z += rollSpeed;
-    } else if (keys.current.e) {
+    } else if (keys.current.c) {
       rotation.current.z -= rollSpeed;
     } else {
       rotation.current.z *= 0.96;
@@ -274,16 +299,23 @@ export default function Ship({ position, rotation }: { position: React.RefObject
       }
     }
 
+    gameAudio.setBoosting(isBoosting);
+
     lasers.current = lasers.current.filter((laser) => {
+      laser.previousPosition.copy(laser.position);
       laser.position.addScaledVector(laser.direction, delta * 60 * 70);
 
-      const hit = gravitySystem.checkLaserCollision(laser.position, 2.0);
+      const hit = gravitySystem.checkLaserCollision(
+        laser.previousPosition,
+        laser.position,
+        laserConfig.hitRadius
+      );
       if (hit) {
-        gravitySystem.recordHit(hit.bodyId, laser.position, 6.0);
+        gravitySystem.recordHit(hit.bodyId, hit.hitPoint, laserConfig.craterRadius);
         return false;
       }
 
-      return laser.position.distanceTo(position.current) < 5000;
+      return laser.position.distanceTo(position.current) < laserConfig.maxTravelDistance;
     });
 
     if (laserGroup.current) {

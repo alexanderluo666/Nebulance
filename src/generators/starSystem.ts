@@ -1,4 +1,13 @@
-import type { StarSystem, Star, PlanetType, StarType, Moon, AsteroidBelt } from "../types/starSystem";
+import type { StarSystem, Moon, AsteroidBelt } from "../types/starSystem";
+import {
+  BODY_RADIUS_SCALE,
+  galaxyConfig,
+  starSystemConfig,
+  starTypes,
+  planetTypes,
+  starNames,
+  ringPalettes,
+} from "../data/worldConfig";
 
 export function createPRNG(seedStr: string) {
   let h = 0xdeadbeef;
@@ -14,49 +23,28 @@ export function createPRNG(seedStr: string) {
   };
 }
 
-const starTypes: Array<{ type: StarType; color: string; radius: number; intensity: number }> = [
-  { type: "Red Dwarf", color: "#ff9966", radius: 4.5, intensity: 1.8 },
-  { type: "Yellow Star", color: "#fff3b0", radius: 6.8, intensity: 2.4 },
-  { type: "Blue Giant", color: "#89d5ff", radius: 9.2, intensity: 3.6 },
-  { type: "White Star", color: "#ffffff", radius: 7.6, intensity: 2.8 },
-  { type: "Orange Star", color: "#ffb74d", radius: 6.2, intensity: 2.2 },
-];
-
-const planetTypes: PlanetType[] = [
-  "Desert",
-  "Ice",
-  "Ocean",
-  "Lava",
-  "Gas giant",
-  "Dead moon",
-  "Forest",
-  "Toxic",
-];
-
-const starNames = ["Aether", "Nova", "Vortex", "Orion", "Zephos", "Eclipse", "Titan", "Nyx"];
-
 function makeMoon(id: number, planetSize: number, random: () => number): Moon {
   return {
     id,
     name: `${starNames[Math.floor(random() * starNames.length)]}-Moon-${id}`,
-    size: random() * (5 - 1) + 1,
-    orbitalRadius: random() * (planetSize * 2.8 - planetSize * 1.4) + planetSize * 1.4,
+    size: (random() * (5 - 1) + 1) * BODY_RADIUS_SCALE,
+    orbitalRadius: (random() * (planetSize * 2.8 - planetSize * 1.4) + planetSize * 1.4),
     orbitalPeriod: random() * (18 - 6) + 6,
-    inclination: random() * (0.18 - (-0.18)) + (-0.18),
+    inclination: random() * (starSystemConfig.inclinationRange * 2) - starSystemConfig.inclinationRange,
     color: "#d5d5d5",
-    phase: random() * (Math.PI * 2 - 0) + 0,
+    phase: random() * Math.PI * 2,
   };
 }
 
 function makeAsteroidBelt(id: number, random: () => number): AsteroidBelt {
-  const innerRadius = random() * (48 - 24) + 24;
-  const thickness = random() * (16 - 6) + 6;
+  const innerRadius = (random() * (48 - 24) + 24) * BODY_RADIUS_SCALE;
+  const thickness = (random() * (16 - 6) + 6) * BODY_RADIUS_SCALE;
   return {
     id,
     innerRadius,
     outerRadius: innerRadius + thickness,
     count: Math.floor(random() * (44 - 24) + 24),
-    height: random() * (14 - (-14)) + (-14),
+    height: (random() * (14 - (-14)) + (-14)) * BODY_RADIUS_SCALE,
     speed: random() * (0.014 - 0.005) + 0.005,
   };
 }
@@ -66,7 +54,7 @@ export function generateStarSystem(worldSystemSeed: string): StarSystem {
 
   const starIndex = Math.floor(worldRandom() * starTypes.length);
   const starConfig = starTypes[starIndex];
-  const star: Star = {
+  const star: StarSystem["star"] = {
     name: `${starNames[Math.floor(worldRandom() * starNames.length)]} ${String.fromCharCode(65 + Math.floor(worldRandom() * 26))}${String.fromCharCode(65 + Math.floor(worldRandom() * 26))}${String.fromCharCode(65 + Math.floor(worldRandom() * 26))}${String.fromCharCode(65 + Math.floor(worldRandom() * 26))}`,
     type: starConfig.type,
     color: starConfig.color,
@@ -75,25 +63,38 @@ export function generateStarSystem(worldSystemSeed: string): StarSystem {
     position: [0, 0, 0],
   };
 
-  const planetCount = Math.max(3, Math.floor(worldRandom() * 5) + 3);
-  let currentMinRadius = 18;
+  const planetCount =
+    starSystemConfig.planetCountMin +
+    Math.floor(worldRandom() * (starSystemConfig.planetCountMax - starSystemConfig.planetCountMin + 1));
+  let currentMinRadius = starSystemConfig.initialOrbitRadius;
   const planets = Array.from({ length: planetCount }, (_, index) => {
     const planetRandom = createPRNG(`${worldSystemSeed}-planet-${index}`);
 
     const type = planetTypes[Math.floor(planetRandom() * planetTypes.length)];
-    const size = planetRandom() * (40 - 10) + 10;
-    const orbitalRadius = currentMinRadius + size / 2 + planetRandom() * 15 + 10;
-    currentMinRadius = orbitalRadius + size / 2 + 15;
-    const orbitalPeriod = planetRandom() * (110 - 22) + 22;
-    const inclination = planetRandom() * (0.18 - (-0.18)) + (-0.18);
-    const moonCount = Math.floor(planetRandom() * 3);
+    const size =
+      planetRandom() * (starSystemConfig.planetSizeMax - starSystemConfig.planetSizeMin) +
+      starSystemConfig.planetSizeMin;
+    const orbitalRadius =
+      currentMinRadius +
+      size / 2 +
+      planetRandom() * (starSystemConfig.orbitGapRandomMax - starSystemConfig.orbitGapRandomMin) +
+      starSystemConfig.orbitGapRandomMin;
+    currentMinRadius = orbitalRadius + size / 2 + starSystemConfig.orbitTrailingGap;
+    const orbitalPeriod =
+      planetRandom() * (starSystemConfig.orbitalPeriodMax - starSystemConfig.orbitalPeriodMin) +
+      starSystemConfig.orbitalPeriodMin;
+    const inclination =
+      planetRandom() * (starSystemConfig.inclinationRange * 2) - starSystemConfig.inclinationRange;
+    const moonCount = Math.floor(planetRandom() * (starSystemConfig.moonCountMax + 1));
 
     const moons = Array.from({ length: moonCount }, (_, moonIndex) =>
       makeMoon(index * 10 + moonIndex, size, planetRandom)
     );
 
-    const hasRings = planetRandom() > 0.6;
-    const ringColor = `#${Math.floor(planetRandom() * 16777215).toString(16).padStart(6, '0')}`;
+    const hasRings = planetRandom() > 1 - starSystemConfig.ringChance;
+    const palette = ringPalettes[Math.floor(planetRandom() * ringPalettes.length)];
+    const ringColor = palette.primary;
+    const ringAccent = palette.accent;
 
     return {
       id: index,
@@ -105,15 +106,21 @@ export function generateStarSystem(worldSystemSeed: string): StarSystem {
       orbitalSpeed: (Math.PI * 2) / orbitalPeriod,
       inclination,
       rotationSpeed: planetRandom() * (0.012 - 0.003) + 0.003,
-      phase: planetRandom() * (Math.PI * 2 - 0) + 0,
+      phase: planetRandom() * Math.PI * 2,
       seed: Math.floor(planetRandom() * 1000000),
       moons,
       hasRings,
       ringColor,
+      ringAccent,
     };
   });
 
-  const asteroidBelts = Array.from({ length: Math.max(1, Math.floor(worldRandom() * 2)) }, (_, index) =>
+  const beltCount =
+    starSystemConfig.asteroidBeltCountMin +
+    Math.floor(
+      worldRandom() * (starSystemConfig.asteroidBeltCountMax - starSystemConfig.asteroidBeltCountMin + 1)
+    );
+  const asteroidBelts = Array.from({ length: beltCount }, (_, index) =>
     makeAsteroidBelt(index, worldRandom)
   );
 
@@ -125,15 +132,58 @@ export function generateStarSystem(worldSystemSeed: string): StarSystem {
   };
 }
 
+function distSq(a: [number, number, number], b: [number, number, number]) {
+  const dx = a[0] - b[0];
+  const dy = a[1] - b[1];
+  const dz = a[2] - b[2];
+  return dx * dx + dy * dy + dz * dz;
+}
+
 export function generateGalaxy(worldSeed: string): { position: [number, number, number]; system: StarSystem }[] {
   const worldRandom = createPRNG(worldSeed);
-  const systemCount = 10 + Math.floor(worldRandom() * 10);
-  return Array.from({ length: systemCount }, (_, i) => {
-    const position: [number, number, number] = [
-      (worldRandom() - 0.5) * 2000,
-      (worldRandom() - 0.5) * 2000,
-      (worldRandom() - 0.5) * 2000,
-    ];
-    return { position, system: generateStarSystem(`${worldSeed}-sys-${i}`) };
-  });
+  const systemCount =
+    galaxyConfig.systemCountMin +
+    Math.floor(worldRandom() * (galaxyConfig.systemCountMax - galaxyConfig.systemCountMin + 1));
+  const spread = galaxyConfig.universeSpread;
+  const minSep = galaxyConfig.minSystemSeparation;
+  const minSepSq = minSep * minSep;
+  const positions: [number, number, number][] = [[0, 0, 0]];
+
+  for (let i = 1; i < systemCount; i++) {
+    let position: [number, number, number] = [0, 0, 0];
+    let placed = false;
+    for (let attempt = 0; attempt < 48; attempt++) {
+      const ring = Math.floor((i - 1) / 6) + 1;
+      const slot = (i - 1) % 6;
+      const ringCount = Math.ceil(systemCount / 6) + 1;
+      const angle = (slot / 6) * Math.PI * 2 + worldRandom() * 0.4;
+      const dist = ring * (spread / ringCount) * (0.65 + worldRandom() * 0.5);
+      const candidate: [number, number, number] = [
+        Math.cos(angle) * dist,
+        (worldRandom() - 0.5) * spread * 0.12,
+        Math.sin(angle) * dist,
+      ];
+      const ok = positions.every((p) => distSq(p, candidate) >= minSepSq);
+      if (ok) {
+        position = candidate;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      const angle = worldRandom() * Math.PI * 2;
+      const dist = spread * (0.35 + worldRandom() * 0.45);
+      position = [
+        Math.cos(angle) * dist,
+        (worldRandom() - 0.5) * spread * 0.1,
+        Math.sin(angle) * dist,
+      ];
+    }
+    positions.push(position);
+  }
+
+  return positions.map((position, i) => ({
+    position,
+    system: generateStarSystem(`${worldSeed}-sys-${i}`),
+  }));
 }

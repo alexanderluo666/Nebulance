@@ -1,12 +1,18 @@
 import { Canvas } from "@react-three/fiber";
 import { Stars } from "@react-three/drei";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import Ship from "./Ship";
 import Planet from "./Planet";
 import Star from "./Star";
 import Asteroid from "./Asteroid";
 import { generateGalaxy } from "../generators/starSystem";
+import { generateStations } from "../generators/stations";
+import { backgroundStarsConfig, sceneScaleConfig } from "../data/worldConfig";
+import { gameAudio } from "../systems/audio";
+import SpaceStation from "./SpaceStation";
+import StationProximity from "./StationProximity";
+import type { StationProximityState } from "../types/station";
 
 function GalaxyFog({ seed }: { seed: string }) {
   const fogTexture = useMemo(() => {
@@ -31,7 +37,7 @@ function GalaxyFog({ seed }: { seed: string }) {
 
   const colors = ["#5511aa", "#1188aa", "#770088", "#0099aa", "#440077"];
   const fogCount = 6;
-  const scale = 1000;
+  const scale = sceneScaleConfig.galaxyFogScale;
 
   const random = (s: number) => {
     return Math.sin(s * 12.9898) * 43758.5453 - Math.floor(Math.sin(s * 12.9898) * 43758.5453);
@@ -55,26 +61,52 @@ function GalaxyFog({ seed }: { seed: string }) {
   );
 }
 
-export default function SpaceScene({ worldSeed }: { worldSeed: string }) {
+export default function SpaceScene({
+  worldSeed,
+  dockOpen = false,
+  onStationProximityChange,
+}: {
+  worldSeed: string;
+  dockOpen?: boolean;
+  onStationProximityChange?: (state: StationProximityState) => void;
+}) {
   const savedPos = localStorage.getItem("nebulance_shipPos");
   const savedRot = localStorage.getItem("nebulance_shipRot");
 
-  const initialPos = savedPos ? JSON.parse(savedPos) : { x: 0, y: 8, z: 28 };
+  const parsedPos = savedPos ? JSON.parse(savedPos) : { x: 0, y: 80, z: 220 };
+  const distFromHome = Math.hypot(parsedPos.x, parsedPos.y, parsedPos.z);
+  // Saved positions in deep space are reset near the origin galaxy.
+  const initialPos = distFromHome > 4000 ? { x: 0, y: 80, z: 220 } : parsedPos;
   const initialRot = savedRot ? JSON.parse(savedRot) : { _x: 0, _y: 0, _z: 0 };
 
   const shipPos = useRef(new THREE.Vector3(initialPos.x, initialPos.y, initialPos.z));
   const shipRot = useRef(new THREE.Euler(initialRot._x, initialRot._y, initialRot._z));
 
   const galaxy = useMemo(() => generateGalaxy(worldSeed), [worldSeed]);
+  const stations = useMemo(() => generateStations(worldSeed), [worldSeed]);
+
+  useEffect(() => {
+    gameAudio.start();
+    return () => gameAudio.stop();
+  }, []);
 
   return (
-    <Canvas camera={{ position: [0, 18, 42], fov: 60, far: 10000 }}>
-      <fog attach="fog" args={["#000000", 100, 10000]} />
-      <ambientLight intensity={0.55} />
-      <directionalLight position={[40, 40, 20]} intensity={1.2} />
-      <directionalLight position={[-30, 15, -60]} intensity={0.8} />
+    <Canvas camera={{ position: [0, 18, 42], fov: 60, far: sceneScaleConfig.cameraFar }}>
+      <fog attach="fog" args={["#030308", sceneScaleConfig.fogNear, sceneScaleConfig.fogFar]} />
+      <ambientLight intensity={sceneScaleConfig.ambientLightIntensity} />
+      <hemisphereLight color="#a8b8ff" groundColor="#1a1020" intensity={0.35} />
+      <directionalLight position={[40, 40, 20]} intensity={1.4} />
+      <directionalLight position={[-30, 15, -60]} intensity={0.9} />
 
-      <Stars radius={350} depth={150} count={15000} factor={8} fade speed={0.4} />
+      <Stars
+        radius={backgroundStarsConfig.radius}
+        depth={backgroundStarsConfig.depth}
+        count={backgroundStarsConfig.count}
+        factor={backgroundStarsConfig.factor}
+        saturation={backgroundStarsConfig.saturation}
+        fade={backgroundStarsConfig.fade}
+        speed={backgroundStarsConfig.speed}
+      />
 
       {galaxy.map((item) => (
         <group key={item.system.seed} position={item.position}>
@@ -89,7 +121,15 @@ export default function SpaceScene({ worldSeed }: { worldSeed: string }) {
         </group>
       ))}
 
-      <Ship position={shipPos} rotation={shipRot} />
+      {stations.map((station) => (
+        <SpaceStation key={station.id} station={station} />
+      ))}
+
+      {onStationProximityChange && (
+        <StationProximity shipPos={shipPos} stations={stations} onChange={onStationProximityChange} />
+      )}
+
+      <Ship position={shipPos} rotation={shipRot} controlsPaused={dockOpen} />
     </Canvas>
   );
 }

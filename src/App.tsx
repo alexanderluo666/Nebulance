@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import SpaceScene from "./components/SpaceScene";
+import DockInventory from "./components/DockInventory";
+import StationPrompt from "./components/StationPrompt";
+import type { StationProximityState } from "./types/station";
 
 const generateRandomSeed = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -12,6 +15,12 @@ export default function App() {
     return localStorage.getItem("nebulance_worldSeed") || generateRandomSeed();
   });
   const [inputWorldSeed, setInputWorldSeed] = useState(worldSeed);
+  const [dockOpen, setDockOpen] = useState(false);
+  const [stationProximity, setStationProximity] = useState<StationProximityState>({
+    near: false,
+    station: null,
+    distance: Infinity,
+  });
 
   useEffect(() => {
     localStorage.setItem("nebulance_worldSeed", worldSeed);
@@ -20,16 +29,23 @@ export default function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (gameState === "PLAYING") {
+        if (dockOpen) {
+          setDockOpen(false);
+        } else if (gameState === "PLAYING") {
           setGameState("QUIT_CONFIRM");
         } else if (gameState === "QUIT_CONFIRM") {
           setGameState("PLAYING");
         }
+        return;
+      }
+      if ((e.key === "e" || e.key === "E") && gameState === "PLAYING") {
+        e.preventDefault();
+        setDockOpen((open) => !open);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState]);
+  }, [gameState, dockOpen]);
 
   const handlePlayClick = () => {
     setInputWorldSeed(worldSeed);
@@ -88,9 +104,20 @@ export default function App() {
 
       {(gameState === "PLAYING" || gameState === "QUIT_CONFIRM") && (
         <>
-          <SpaceScene worldSeed={worldSeed} />
+          <SpaceScene
+            worldSeed={worldSeed}
+            dockOpen={dockOpen}
+            onStationProximityChange={setStationProximity}
+          />
+          <StationPrompt visible={stationProximity.near && !dockOpen} station={stationProximity.station} />
+          <DockInventory
+            open={dockOpen}
+            onClose={() => setDockOpen(false)}
+            activeStation={stationProximity.near ? stationProximity.station : null}
+          />
           <div style={{ position: "absolute", top: 20, left: 20, zIndex: 10, color: "rgba(255,255,255,0.5)", fontFamily: "monospace", pointerEvents: "none" }}>
-            Press ESC to pause/quit
+            <div>Press ESC to pause/quit</div>
+            <div style={{ marginTop: 6, fontSize: "12px" }}>E — Dock / Inventory · Z/C — Roll</div>
           </div>
           <div style={{ position: "absolute", bottom: 40, left: "50%", transform: "translateX(-50%)", zIndex: 10, width: "300px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", pointerEvents: "none" }}>
             <div style={{ color: "#00ffff", fontFamily: "monospace", fontSize: "14px", letterSpacing: "2px" }}>BOOST ENERGY</div>

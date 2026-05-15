@@ -134,11 +134,35 @@ class GravitySystem {
     return { collisionNormal, overlap };
   }
 
-  // Laser collision detection
-  checkLaserCollision(laserPos: THREE.Vector3, laserRadius: number) {
+  // Laser collision: sweep segment against body spheres (fixes fast-moving misses)
+  checkLaserCollision(
+    prevPos: THREE.Vector3,
+    currPos: THREE.Vector3,
+    laserRadius: number
+  ): { bodyId: string; hitPoint: THREE.Vector3 } | null {
+    const segment = currPos.clone().sub(prevPos);
+    const segLenSq = segment.lengthSq();
+    if (segLenSq === 0) {
+      return this.checkLaserPointCollision(currPos, laserRadius);
+    }
+
+    for (const [id, body] of this.bodies.entries()) {
+      const toCenter = body.position.clone().sub(prevPos);
+      let t = toCenter.dot(segment) / segLenSq;
+      t = Math.max(0, Math.min(1, t));
+      const closest = prevPos.clone().add(segment.clone().multiplyScalar(t));
+      const hitRadius = body.size + laserRadius;
+      if (closest.distanceToSquared(body.position) <= hitRadius * hitRadius) {
+        return { bodyId: id, hitPoint: closest };
+      }
+    }
+    return null;
+  }
+
+  private checkLaserPointCollision(laserPos: THREE.Vector3, laserRadius: number) {
     for (const [id, body] of this.bodies.entries()) {
       if (laserPos.distanceTo(body.position) < body.size + laserRadius) {
-        return { bodyId: id };
+        return { bodyId: id, hitPoint: laserPos.clone() };
       }
     }
     return null;
