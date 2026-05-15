@@ -28,8 +28,9 @@
 + Space for laser beam shoot
 
 ## Credit for resources
-+ Spaceship by Quaternius [Spaceship](https://poly.pizza/m/uCeLfsdmNP)
++ Spaceship by Quaternius [Poly Pizza](https://poly.pizza/m/uCeLfsdmNP)
 + Asteroid by Poly by Google [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/enaIlQWET9a)
++ International Space Station by Poly by Google [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/d3Fq5H6ne8E)
 + SVG icon by [SVGAI](https://www.svgai.org/)
 + Audio from [Pixabay Music](https://pixabay.com/music/)
 
