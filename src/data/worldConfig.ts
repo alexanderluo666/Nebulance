@@ -91,9 +91,14 @@ export const sceneScaleConfig = {
   starLightIntensityMult: 1.0,
 } as const;
 
+/** Default ship spawn; home station is placed within nearSpawnHalfExtent of this point. */
+export const defaultSpawn = { x: 0, y: 50, z: 120 } as const;
+
 export const stationConfig = {
   /** Stations spawn inside a cube of this size centered on origin. */
   spawnVolume: 100,
+  /** Home station must stay within ±this distance of defaultSpawn on each axis. */
+  nearSpawnHalfExtent: 50,
   countMin: 2,
   countMax: 3,
   minSeparation: 28,

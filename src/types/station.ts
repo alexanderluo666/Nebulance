@@ -3,6 +3,7 @@ export type SpaceStationData = {
   name: string;
   position: [number, number, number];
   rotation: [number, number, number];
+  isHome?: boolean;
 };
 
 export type StationProximityState = {

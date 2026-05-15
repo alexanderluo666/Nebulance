@@ -7,7 +7,10 @@ import Planet from "./Planet";
 import Star from "./Star";
 import Asteroid from "./Asteroid";
 import { generateGalaxy } from "../generators/starSystem";
-import { generateStations } from "../generators/stations";
+import { generateStations, getHomeStation, getNewGameShipPose } from "../generators/stations";
+import { defaultSpawn } from "../data/worldConfig";
+
+const NEW_GAME_FLAG = "nebulance_newGame";
 import { backgroundStarsConfig, sceneScaleConfig } from "../data/worldConfig";
 import { gameAudio } from "../systems/audio";
 import SpaceStation from "./SpaceStation";
@@ -70,20 +73,34 @@ export default function SpaceScene({
   dockOpen?: boolean;
   onStationProximityChange?: (state: StationProximityState) => void;
 }) {
-  const savedPos = localStorage.getItem("nebulance_shipPos");
-  const savedRot = localStorage.getItem("nebulance_shipRot");
+  const galaxy = useMemo(() => generateGalaxy(worldSeed), [worldSeed]);
+  const stations = useMemo(() => generateStations(worldSeed), [worldSeed]);
+  const homeStation = useMemo(() => getHomeStation(stations), [stations]);
 
-  const parsedPos = savedPos ? JSON.parse(savedPos) : { x: 0, y: 80, z: 220 };
-  const distFromHome = Math.hypot(parsedPos.x, parsedPos.y, parsedPos.z);
-  // Saved positions in deep space are reset near the origin galaxy.
-  const initialPos = distFromHome > 4000 ? { x: 0, y: 80, z: 220 } : parsedPos;
-  const initialRot = savedRot ? JSON.parse(savedRot) : { _x: 0, _y: 0, _z: 0 };
+  const isNewGame = localStorage.getItem(NEW_GAME_FLAG) === "true";
+
+  const { initialPos, initialRot } = useMemo(() => {
+    if (isNewGame && homeStation) {
+      const pose = getNewGameShipPose(homeStation);
+      return { initialPos: pose.position, initialRot: pose.rotation };
+    }
+    const savedPos = localStorage.getItem("nebulance_shipPos");
+    const savedRot = localStorage.getItem("nebulance_shipRot");
+    const parsedPos = savedPos ? JSON.parse(savedPos) : defaultSpawn;
+    const distFromHome = Math.hypot(parsedPos.x, parsedPos.y, parsedPos.z);
+    const pos = distFromHome > 4000 ? { ...defaultSpawn } : parsedPos;
+    const rot = savedRot ? JSON.parse(savedRot) : { _x: 0, _y: 0, _z: 0 };
+    return { initialPos: pos, initialRot: rot };
+  }, [isNewGame, homeStation]);
 
   const shipPos = useRef(new THREE.Vector3(initialPos.x, initialPos.y, initialPos.z));
   const shipRot = useRef(new THREE.Euler(initialRot._x, initialRot._y, initialRot._z));
 
-  const galaxy = useMemo(() => generateGalaxy(worldSeed), [worldSeed]);
-  const stations = useMemo(() => generateStations(worldSeed), [worldSeed]);
+  useEffect(() => {
+    if (isNewGame) {
+      localStorage.removeItem(NEW_GAME_FLAG);
+    }
+  }, [isNewGame]);
 
   useEffect(() => {
     gameAudio.start();
