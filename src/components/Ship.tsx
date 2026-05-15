@@ -2,7 +2,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import spaceshipUrl from "../assets/Spaceship.glb?url";
+import type { ShipId } from "../data/ships";
+import { getShipDefinition } from "../data/ships";
 import { gravitySystem } from "../systems/gravity";
 import { gameAudio } from "../systems/audio";
 import { laserConfig } from "../data/worldConfig";
@@ -80,10 +81,12 @@ function CameraController({ ship, rotation }: { ship: React.RefObject<THREE.Obje
 export default function Ship({
   position,
   rotation,
+  shipId,
   controlsPaused = false,
 }: {
   position: React.RefObject<THREE.Vector3>;
   rotation: React.RefObject<THREE.Euler>;
+  shipId: ShipId;
   controlsPaused?: boolean;
 }) {
   const ref = useRef<THREE.Object3D>(null!);
@@ -110,7 +113,8 @@ export default function Ship({
     down: false,
   });
 
-  const { scene } = useGLTF(spaceshipUrl);
+  const shipDef = getShipDefinition(shipId);
+  const { scene } = useGLTF(shipDef.url);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -417,7 +421,7 @@ export default function Ship({
   return (
     <>
       <group ref={ref}>
-        <primitive object={scene} scale={0.1} rotation={[0, Math.PI, 0]} />
+        <primitive object={scene} scale={shipDef.previewScale} rotation={[0, Math.PI, 0]} />
       </group>
       <CameraController ship={ref} rotation={rotation} />
       <group ref={laserGroup} />

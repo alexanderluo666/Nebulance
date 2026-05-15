@@ -11,7 +11,7 @@ import ambient10 from "../assets/Ambient10.mp3";
 import ambient11 from "../assets/Ambient11.mp3";
 import ship1Url from "../assets/Ship1.mp3";
 import ship2Url from "../assets/Ship2.mp3";
-import laserUrl from "../assets/laser.mp3";
+import laserUrl from "../assets/laser1.mp3";
 import { audioConfig } from "../data/worldConfig";
 
 const ambientTracks = [

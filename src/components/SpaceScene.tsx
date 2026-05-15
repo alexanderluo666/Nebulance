@@ -19,6 +19,7 @@ import StationProximity from "./StationProximity";
 import StationLinkLine from "./StationLinkLine";
 import StationLinkRing from "./StationLinkRing";
 import type { StationProximityState } from "../types/station";
+import type { ShipId } from "../data/ships";
 
 function GalaxyFog({ seed }: { seed: string }) {
   const fogTexture = useMemo(() => {
@@ -69,6 +70,7 @@ function GalaxyFog({ seed }: { seed: string }) {
 
 export default function SpaceScene({
   worldSeed,
+  shipId,
   dockOpen = false,
   onStationProximityChange,
   linkTarget = null,
@@ -76,6 +78,7 @@ export default function SpaceScene({
   linkProgress = 0,
 }: {
   worldSeed: string;
+  shipId: ShipId;
   dockOpen?: boolean;
   onStationProximityChange?: (state: StationProximityState) => void;
   linkTarget?: StationProximityState["station"];
@@ -188,7 +191,7 @@ export default function SpaceScene({
         <StationProximity shipPos={shipPos} stations={stations} onChange={onStationProximityChange} />
       )}
 
-      <Ship position={shipPos} rotation={shipRot} controlsPaused={dockOpen} />
+      <Ship key={shipId} position={shipPos} rotation={shipRot} shipId={shipId} controlsPaused={dockOpen} />
     </Canvas>
   );
 }

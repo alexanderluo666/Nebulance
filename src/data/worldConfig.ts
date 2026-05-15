@@ -105,7 +105,7 @@ export const stationConfig = {
   countMax: 3,
   minSeparation: 28,
   proximityRange: 55,
-  modelScale: 0.068,
+  modelScale: 0.136,
   linkDurationMs: 1400,
   /** Ship gravity multiplier when docked near a station. */
   dockedGravityMult: 0.02,

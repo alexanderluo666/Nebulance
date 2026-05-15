@@ -1,5 +1,10 @@
+import type { ShipId } from "../data/ships";
+import ShipSelector from "./ShipSelector";
+
 type Props = {
   homeStationName: string;
+  selectedShipId: ShipId;
+  onSelectShip: (id: ShipId) => void;
   onLaunch: () => void;
 };
 
@@ -33,7 +38,7 @@ const row: React.CSSProperties = {
   borderBottom: "1px solid rgba(0,255,255,0.1)",
 };
 
-export default function GuideMenu({ homeStationName, onLaunch }: Props) {
+export default function GuideMenu({ homeStationName, selectedShipId, onSelectShip, onLaunch }: Props) {
   return (
     <div
       style={{
@@ -85,6 +90,10 @@ export default function GuideMenu({ homeStationName, onLaunch }: Props) {
           <li>Dock to refill boost energy and collect fuel cells</li>
           <li>Explore star systems beyond the station when ready</li>
         </ul>
+
+        <div style={{ marginBottom: "24px" }}>
+          <ShipSelector selectedId={selectedShipId} onSelect={onSelectShip} compact />
+        </div>
 
         <button
           type="button"

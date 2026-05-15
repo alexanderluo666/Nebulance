@@ -3,7 +3,9 @@ import SpaceScene from "./components/SpaceScene";
 import DockInventory from "./components/DockInventory";
 import StationPrompt from "./components/StationPrompt";
 import GuideMenu from "./components/GuideMenu";
+import ShipSelector from "./components/ShipSelector";
 import type { StationProximityState } from "./types/station";
+import { loadSavedShipId, saveShipId, type ShipId } from "./data/ships";
 import { generateGalaxy } from "./generators/starSystem";
 import { generateStations, getHomeStation } from "./generators/stations";
 import { stationConfig } from "./data/worldConfig";
@@ -29,6 +31,7 @@ export default function App() {
     return localStorage.getItem("nebulance_worldSeed") || generateRandomSeed();
   });
   const [inputWorldSeed, setInputWorldSeed] = useState(worldSeed);
+  const [selectedShipId, setSelectedShipId] = useState<ShipId>(loadSavedShipId);
   const [dockOpen, setDockOpen] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [linkProgress, setLinkProgress] = useState(0);
@@ -134,7 +137,13 @@ export default function App() {
     setGameState("GUIDE");
   };
 
+  const handleSelectShip = (id: ShipId) => {
+    setSelectedShipId(id);
+    saveShipId(id);
+  };
+
   const handleLaunchFromGuide = () => {
+    saveShipId(selectedShipId);
     localStorage.setItem(NEW_GAME_FLAG, "true");
     setGameState("PLAYING");
   };
@@ -215,14 +224,43 @@ export default function App() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: "flex-start",
+            overflowY: "auto",
+            padding: "32px 16px",
             zIndex: 50,
             background: "radial-gradient(circle, #0b1a2e 0%, #000000 100%)",
           }}
         >
-          <h2 style={{ color: "#fff", fontSize: "2rem", fontFamily: "monospace", letterSpacing: "4px", marginBottom: "2rem" }}>
-            Enter World Seed
+          <h2 style={{ color: "#fff", fontSize: "2rem", fontFamily: "monospace", letterSpacing: "4px", marginBottom: "12px" }}>
+            New Expedition
           </h2>
+          <p
+            style={{
+              maxWidth: "520px",
+              margin: "0 0 24px",
+              color: "#8899aa",
+              fontFamily: "monospace",
+              fontSize: "13px",
+              lineHeight: 1.6,
+              textAlign: "center",
+            }}
+          >
+            Choose your hull, then set a world seed. The same seed always generates the same star systems and stations.
+          </p>
+          <div style={{ width: "min(560px, 96vw)", marginBottom: "28px" }}>
+            <ShipSelector selectedId={selectedShipId} onSelect={handleSelectShip} />
+          </div>
+          <h3
+            style={{
+              color: "#00ffff",
+              fontSize: "14px",
+              fontFamily: "monospace",
+              letterSpacing: "3px",
+              marginBottom: "16px",
+            }}
+          >
+            WORLD SEED
+          </h3>
           <form onSubmit={handleStartGame} style={{ display: "flex", flexDirection: "column", gap: "24px", alignItems: "center" }}>
             <input
               type="text"
@@ -281,13 +319,19 @@ export default function App() {
       )}
 
       {gameState === "GUIDE" && guideHomeStation && (
-        <GuideMenu homeStationName={guideHomeStation.name} onLaunch={handleLaunchFromGuide} />
+        <GuideMenu
+          homeStationName={guideHomeStation.name}
+          selectedShipId={selectedShipId}
+          onSelectShip={handleSelectShip}
+          onLaunch={handleLaunchFromGuide}
+        />
       )}
 
       {(gameState === "PLAYING" || gameState === "QUIT_CONFIRM") && (
         <>
           <SpaceScene
             worldSeed={worldSeed}
+            shipId={selectedShipId}
             dockOpen={dockOpen}
             onStationProximityChange={setStationProximity}
             linkTarget={stationProximity.near ? stationProximity.station : null}
@@ -304,6 +348,8 @@ export default function App() {
             open={dockOpen}
             onClose={() => setDockOpen(false)}
             activeStation={stationProximity.near ? stationProximity.station : null}
+            selectedShipId={selectedShipId}
+            onSelectShip={handleSelectShip}
           />
           <div
             style={{

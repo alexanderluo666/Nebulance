@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { defaultInventory } from "../data/worldConfig";
+import type { ShipId } from "../data/ships";
 import type { SpaceStationData } from "../types/station";
+import ShipSelector from "./ShipSelector";
 
 type InventoryItem = {
   id: string;
@@ -9,7 +11,7 @@ type InventoryItem = {
   icon: string;
 };
 
-type Tab = "dock" | "inventory";
+type Tab = "dock" | "inventory" | "ship";
 
 function loadInventory(): InventoryItem[] {
   const saved = localStorage.getItem("nebulance_inventory");
@@ -27,9 +29,17 @@ type Props = {
   open: boolean;
   onClose: () => void;
   activeStation?: SpaceStationData | null;
+  selectedShipId: ShipId;
+  onSelectShip: (id: ShipId) => void;
 };
 
-export default function DockInventory({ open, onClose, activeStation = null }: Props) {
+export default function DockInventory({
+  open,
+  onClose,
+  activeStation = null,
+  selectedShipId,
+  onSelectShip,
+}: Props) {
   const [tab, setTab] = useState<Tab>(activeStation ? "dock" : "inventory");
   const [inventory, setInventory] = useState<InventoryItem[]>(loadInventory);
   const [dockStatus, setDockStatus] = useState<"idle" | "docked" | "undocking">(() => {
@@ -138,13 +148,26 @@ export default function DockInventory({ open, onClose, activeStation = null }: P
           <button type="button" style={tabStyle(tab === "dock")} onClick={() => setTab("dock")}>
             DOCK
           </button>
+          {activeStation && (
+            <button type="button" style={tabStyle(tab === "ship")} onClick={() => setTab("ship")}>
+              SHIP
+            </button>
+          )}
           <button type="button" style={tabStyle(tab === "inventory")} onClick={() => setTab("inventory")}>
             INVENTORY
           </button>
         </div>
 
         <div style={{ padding: "20px" }}>
-          {tab === "dock" ? (
+          {tab === "ship" && activeStation ? (
+            <>
+              <p style={{ margin: "0 0 16px", color: "#aabbcc", fontSize: "13px", lineHeight: 1.5 }}>
+                Swap your active hull at <span style={{ color: "#00ffff" }}>{activeStation.name}</span>. Changes apply
+                when you undock.
+              </p>
+              <ShipSelector selectedId={selectedShipId} onSelect={onSelectShip} compact />
+            </>
+          ) : tab === "dock" ? (
             <>
               <h3 style={{ margin: "0 0 12px", color: "#00ffff", letterSpacing: "3px", fontSize: "14px" }}>
                 {activeStation ? "SPACE STATION" : "DOCKING BAY"}
