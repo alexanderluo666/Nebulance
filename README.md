@@ -1,6 +1,7 @@
 # Nebulance
 + A 3D space RPG game in development, using React, Threejs, TS(X)/JS, HTML and CSS.
 + Played at [Nebulance](https://alexanderluo666.github.io/Nebulance/).
++ For best experience, when a new version is released, wipe the save by exiting using ESC and entering a new seed.
 
 ## Features
 + Fly around the beautiful man-made galaxy as a plane, explore and have fun!  
@@ -27,6 +28,7 @@
 + Shift for boost
 + Space for laser beam shoot
 + E for dock and inventory
++ ESC for quit
 
 ## Credit for resources
 + Spaceship by Quaternius [Poly Pizza](https://poly.pizza/m/uCeLfsdmNP)
