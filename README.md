@@ -36,6 +36,9 @@
 + Asteroid by Poly by Google [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/enaIlQWET9a)
 + International Space Station by Poly by Google [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/d3Fq5H6ne8E)
 + Spaceship by Quaternius used for [SpaceShip2](https://poly.pizza/m/u105mYHLHU)
++ Spaceship by Liz Reddington [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/5nWeu4IQXVX)
++ 1 by Eric Finn [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/05X3xYCrpya)
++ dune spaceship by Tom De Wispelaere [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/fo5Gj1JPq-v)
 + SVG icon by [SVGAI](https://www.svgai.org/)
 + Audio from [Pixabay Music](https://pixabay.com/music/)
 
