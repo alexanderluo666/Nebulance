@@ -144,6 +144,15 @@ export function getNewGameShipPose(homeStation: SpaceStationData) {
   };
 }
 
+/** Fixed berth pose while docked at a station (faces the ISS). */
+export function getDockPose(station: SpaceStationData) {
+  const [sx, sy, sz] = station.position;
+  return {
+    position: { x: sx, y: sy + 5, z: sz + 20 },
+    rotation: { _x: 0, _y: Math.PI, _z: 0 },
+  };
+}
+
 /** Spawn offset used when no saved game (near home station region). */
 export function getDefaultSpawnNear(home: SpaceStationData) {
   const pose = getNewGameShipPose(home);

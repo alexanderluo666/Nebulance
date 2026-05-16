@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { defaultInventory } from "../data/worldConfig";
 import type { ShipId } from "../data/ships";
 import type { SpaceStationData } from "../types/station";
+import { formatPrice } from "../data/economy";
 import ShipSelector from "./ShipSelector";
 
 type InventoryItem = {
@@ -31,6 +32,14 @@ type Props = {
   activeStation?: SpaceStationData | null;
   selectedShipId: ShipId;
   onSelectShip: (id: ShipId) => void;
+  ownedShipIds: ShipId[];
+  balance: number;
+  onPurchaseShip: (id: ShipId) => void;
+  onUndock: () => void;
+  onRefuelCharge: () => void;
+  onDockAttach: (stationId: string) => void;
+  refuelCost: number;
+  isDetaching?: boolean;
 };
 
 export default function DockInventory({
@@ -39,6 +48,14 @@ export default function DockInventory({
   activeStation = null,
   selectedShipId,
   onSelectShip,
+  ownedShipIds,
+  balance,
+  onPurchaseShip,
+  onUndock,
+  onRefuelCharge,
+  onDockAttach,
+  refuelCost,
+  isDetaching = false,
 }: Props) {
   const [tab, setTab] = useState<Tab>(activeStation ? "dock" : "inventory");
   const [inventory, setInventory] = useState<InventoryItem[]>(loadInventory);
@@ -51,12 +68,17 @@ export default function DockInventory({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "e" || e.key === "E" || e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        if (dockStatus === "docked" && !isDetaching) {
+          setDockStatus("undocking");
+          onUndock();
+        } else {
+          onClose();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, onUndock, dockStatus, isDetaching]);
 
   useEffect(() => {
     localStorage.setItem("nebulance_inventory", JSON.stringify(inventory));
@@ -70,9 +92,17 @@ export default function DockInventory({
     if (open && activeStation) setTab("dock");
   }, [open, activeStation]);
 
+  useEffect(() => {
+    if (!isDetaching && dockStatus === "undocking") {
+      setDockStatus("idle");
+    }
+  }, [isDetaching, dockStatus]);
+
   if (!open) return null;
 
   const refuelShip = () => {
+    if (balance < refuelCost || !activeStation) return;
+    onRefuelCharge();
     localStorage.setItem("nebulance_energy", "100");
     const energyBar = document.getElementById("energy-bar-fill");
     if (energyBar) {
@@ -87,14 +117,17 @@ export default function DockInventory({
       return [...prev, { id: "fuel-cell", name: "Fuel Cell", qty: 4, icon: "⛽" }];
     });
     setDockStatus("docked");
+    onDockAttach(activeStation.id);
     window.dispatchEvent(new Event("nebulance-refuel"));
   };
 
   const handleDock = () => {
-    if (dockStatus === "idle") setDockStatus("docked");
-    else if (dockStatus === "docked") {
+    if (dockStatus === "idle") {
+      setDockStatus("docked");
+      if (activeStation) onDockAttach(activeStation.id);
+    } else if (dockStatus === "docked") {
       setDockStatus("undocking");
-      setTimeout(() => setDockStatus("idle"), 1200);
+      onUndock();
     }
   };
 
@@ -165,7 +198,15 @@ export default function DockInventory({
                 Swap your active hull at <span style={{ color: "#00ffff" }}>{activeStation.name}</span>. Changes apply
                 when you undock.
               </p>
-              <ShipSelector selectedId={selectedShipId} onSelect={onSelectShip} compact />
+              <ShipSelector
+                selectedId={selectedShipId}
+                onSelect={onSelectShip}
+                compact
+                hangar
+                ownedShipIds={ownedShipIds}
+                balance={balance}
+                onPurchase={onPurchaseShip}
+              />
             </>
           ) : tab === "dock" ? (
             <>
@@ -174,9 +215,12 @@ export default function DockInventory({
               </h3>
               {activeStation ? (
                 <>
-                  <p style={{ margin: "0 0 16px", color: "#aabbcc", fontSize: "13px", lineHeight: 1.5 }}>
+                  <p style={{ margin: "0 0 8px", color: "#aabbcc", fontSize: "13px", lineHeight: 1.5 }}>
                     Attached to <span style={{ color: "#00ffff" }}>{activeStation.name}</span>. Resupply fuel and
                     manage cargo before undocking.
+                  </p>
+                  <p style={{ margin: "0 0 16px", color: "#ffcc66", fontSize: "12px", letterSpacing: "2px" }}>
+                    BALANCE: {formatPrice(balance)}
                   </p>
                   <div
                     style={{
@@ -194,28 +238,31 @@ export default function DockInventory({
                   <button
                     type="button"
                     onClick={refuelShip}
+                    disabled={balance < refuelCost}
                     style={{
                       width: "100%",
                       padding: "14px",
                       marginBottom: "10px",
-                      background: "rgba(0,255,255,0.15)",
-                      border: "2px solid #00ffff",
-                      color: "#00ffff",
+                      background: balance >= refuelCost ? "rgba(0,255,255,0.15)" : "rgba(40,40,40,0.4)",
+                      border: balance >= refuelCost ? "2px solid #00ffff" : "2px solid #445566",
+                      color: balance >= refuelCost ? "#00ffff" : "#667788",
                       borderRadius: "6px",
-                      cursor: "pointer",
+                      cursor: balance >= refuelCost ? "pointer" : "not-allowed",
                       letterSpacing: "3px",
                       fontSize: "14px",
                     }}
                   >
-                    REFUEL (+4 FUEL CELLS, FULL BOOST)
+                    REFUEL — {formatPrice(refuelCost)} (+4 FUEL CELLS)
                   </button>
                   <p style={{ margin: "0 0 12px", color: "#667788", fontSize: "11px", textAlign: "center" }}>
-                    Additional supplies — coming soon
+                    {balance < refuelCost
+                      ? `Insufficient funds — need ${formatPrice(refuelCost)}`
+                      : "Earning N$ — coming soon"}
                   </p>
                   <button
                     type="button"
                     onClick={handleDock}
-                    disabled={dockStatus === "undocking"}
+                    disabled={dockStatus === "undocking" || isDetaching}
                     style={{
                       width: "100%",
                       padding: "12px",
@@ -228,7 +275,7 @@ export default function DockInventory({
                       fontSize: "13px",
                     }}
                   >
-                    {dockStatus === "docked" ? "UNDOCK" : dockStatus === "undocking" ? "UNDOCKING..." : "DETACH"}
+                    {dockStatus === "docked" ? "UNDOCK" : dockStatus === "undocking" ? "UNDOCKING..." : "DOCK"}
                   </button>
                 </>
               ) : (
@@ -305,7 +352,7 @@ export default function DockInventory({
         </div>
 
         <p style={{ margin: 0, padding: "0 20px 16px", fontSize: "11px", color: "#667788", textAlign: "center" }}>
-          Press E or ESC to close
+          {dockStatus === "docked" ? "Press E or ESC to undock" : "Press E or ESC to close"}
         </p>
       </div>
     </>

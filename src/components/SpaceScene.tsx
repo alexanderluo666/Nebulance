@@ -76,6 +76,11 @@ export default function SpaceScene({
   linkTarget = null,
   isLinking = false,
   linkProgress = 0,
+  isDetaching = false,
+  detachProgress = 0,
+  detachStation = null,
+  isDocked = false,
+  dockStationId = null,
 }: {
   worldSeed: string;
   shipId: ShipId;
@@ -84,10 +89,23 @@ export default function SpaceScene({
   linkTarget?: StationProximityState["station"];
   isLinking?: boolean;
   linkProgress?: number;
+  isDetaching?: boolean;
+  detachProgress?: number;
+  detachStation?: StationProximityState["station"];
+  isDocked?: boolean;
+  dockStationId?: string | null;
 }) {
   const galaxy = useMemo(() => generateGalaxy(worldSeed), [worldSeed]);
   const stations = useMemo(() => generateStations(worldSeed, galaxy), [worldSeed, galaxy]);
   const homeStation = useMemo(() => getHomeStation(stations), [stations]);
+  const dockStation = useMemo(() => {
+    if (!isDocked) return null;
+    if (dockStationId) {
+      const found = stations.find((s) => s.id === dockStationId);
+      if (found) return found;
+    }
+    return getHomeStation(stations) ?? stations[0] ?? null;
+  }, [stations, dockStationId, isDocked]);
 
   useEffect(() => {
     gravitySystem.setStationAnchors(
@@ -159,26 +177,41 @@ export default function SpaceScene({
       ))}
 
       {stations.map((station) => {
-        const isTarget = linkTarget?.id === station.id;
+        const isLinkTarget = linkTarget?.id === station.id;
+        const isDetachTarget = detachStation?.id === station.id;
+        const isTarget = isLinkTarget || isDetachTarget;
         return (
           <group key={station.id}>
             <SpaceStation
               station={station}
               linkHighlight={isTarget && !dockOpen}
-              linkProgress={isTarget ? linkProgress : 0}
+              linkProgress={
+                isDetachTarget && isDetaching
+                  ? 1 - detachProgress
+                  : isLinkTarget
+                    ? linkProgress
+                    : 0
+              }
             />
-            {isTarget && !dockOpen && (
+            {isLinkTarget && !dockOpen && !isDetaching && (
               <StationLinkRing
                 stationPosition={station.position}
                 active
                 linkProgress={linkProgress}
               />
             )}
+            {isDetachTarget && isDetaching && (
+              <StationLinkRing
+                stationPosition={station.position}
+                active
+                linkProgress={1 - detachProgress}
+              />
+            )}
           </group>
         );
       })}
 
-      {linkTarget && !dockOpen && (
+      {linkTarget && !dockOpen && !isDetaching && (
         <StationLinkLine
           shipPos={shipPos}
           stationPosition={linkTarget.position}
@@ -187,11 +220,31 @@ export default function SpaceScene({
         />
       )}
 
+      {detachStation && isDetaching && (
+        <StationLinkLine
+          shipPos={shipPos}
+          stationPosition={detachStation.position}
+          visible
+          linkProgress={1 - detachProgress}
+        />
+      )}
+
       {onStationProximityChange && (
         <StationProximity shipPos={shipPos} stations={stations} onChange={onStationProximityChange} />
       )}
 
-      <Ship key={shipId} position={shipPos} rotation={shipRot} shipId={shipId} controlsPaused={dockOpen} />
+      <Ship
+        key={shipId}
+        position={shipPos}
+        rotation={shipRot}
+        shipId={shipId}
+        controlsPaused={dockOpen || isDetaching || isDocked}
+        isDetaching={isDetaching}
+        detachProgress={detachProgress}
+        detachStationPosition={detachStation?.position ?? null}
+        isDocked={isDocked}
+        dockStation={dockStation}
+      />
     </Canvas>
   );
 }

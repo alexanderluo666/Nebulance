@@ -5,7 +5,17 @@ import StationPrompt from "./components/StationPrompt";
 import GuideMenu from "./components/GuideMenu";
 import ShipSelector from "./components/ShipSelector";
 import type { StationProximityState } from "./types/station";
-import { loadSavedShipId, saveShipId, type ShipId } from "./data/ships";
+import {
+  loadSavedShipId,
+  saveShipId,
+  loadOwnedShipIds,
+  saveOwnedShipIds,
+  getShipDefinition,
+  STARTER_SHIP_IDS,
+  type ShipId,
+} from "./data/ships";
+import { loadBalance, saveBalance, startingBalance, REFUEL_COST } from "./data/economy";
+import StationDetachPrompt from "./components/StationDetachPrompt";
 import { generateGalaxy } from "./generators/starSystem";
 import { generateStations, getHomeStation } from "./generators/stations";
 import { stationConfig } from "./data/worldConfig";
@@ -20,6 +30,9 @@ function clearSaveData() {
   localStorage.removeItem("nebulance_energy");
   localStorage.removeItem("nebulance_inventory");
   localStorage.removeItem("nebulance_docked");
+  localStorage.removeItem("nebulance_balance");
+  localStorage.removeItem("nebulance_ownedShips");
+  localStorage.removeItem("nebulance_dockStationId");
 }
 
 type GameState = "MAIN_MENU" | "SEED_MENU" | "GUIDE" | "PLAYING" | "QUIT_CONFIRM";
@@ -32,10 +45,20 @@ export default function App() {
   });
   const [inputWorldSeed, setInputWorldSeed] = useState(worldSeed);
   const [selectedShipId, setSelectedShipId] = useState<ShipId>(loadSavedShipId);
+  const [ownedShipIds, setOwnedShipIds] = useState<ShipId[]>(loadOwnedShipIds);
+  const [balance, setBalance] = useState(loadBalance);
   const [dockOpen, setDockOpen] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [linkProgress, setLinkProgress] = useState(0);
   const linkTimerRef = useRef<number | null>(null);
+  const [isDetaching, setIsDetaching] = useState(false);
+  const [detachProgress, setDetachProgress] = useState(0);
+  const [detachStation, setDetachStation] = useState<StationProximityState["station"]>(null);
+  const detachTimerRef = useRef<number | null>(null);
+  const [isDocked, setIsDocked] = useState(() => localStorage.getItem("nebulance_docked") === "true");
+  const [dockStationId, setDockStationId] = useState<string | null>(
+    () => localStorage.getItem("nebulance_dockStationId")
+  );
   const [stationProximity, setStationProximity] = useState<StationProximityState>({
     near: false,
     station: null,
@@ -70,16 +93,94 @@ export default function App() {
         }
         setIsLinking(false);
         setDockOpen(true);
+        if (stationProximity.station) {
+          setIsDocked(true);
+          setDockStationId(stationProximity.station.id);
+          localStorage.setItem("nebulance_docked", "true");
+          localStorage.setItem("nebulance_dockStationId", stationProximity.station.id);
+        }
       }
     }, 32);
-  }, []);
+  }, [stationProximity.station]);
 
   useEffect(() => {
     return () => {
       if (linkTimerRef.current !== null) {
         window.clearInterval(linkTimerRef.current);
       }
+      if (detachTimerRef.current !== null) {
+        window.clearInterval(detachTimerRef.current);
+      }
     };
+  }, []);
+
+  const startDetach = useCallback(() => {
+    if (detachTimerRef.current !== null || isDetaching) return;
+
+    let station = stationProximity.station;
+    if (!station && dockStationId) {
+      const galaxy = generateGalaxy(worldSeed);
+      const stations = generateStations(worldSeed, galaxy);
+      station = stations.find((s) => s.id === dockStationId) ?? null;
+    }
+    if (!station) return;
+
+    setDockOpen(false);
+    setDetachStation(station);
+    setIsDetaching(true);
+    setDetachProgress(0);
+    localStorage.setItem("nebulance_docked", "false");
+    localStorage.removeItem("nebulance_dockStationId");
+    setIsDocked(false);
+    setDockStationId(null);
+
+    const start = performance.now();
+    const duration = stationConfig.detachDurationMs;
+
+    detachTimerRef.current = window.setInterval(() => {
+      const t = Math.min(1, (performance.now() - start) / duration);
+      setDetachProgress(t);
+      if (t >= 1) {
+        if (detachTimerRef.current !== null) {
+          window.clearInterval(detachTimerRef.current);
+          detachTimerRef.current = null;
+        }
+        setIsDetaching(false);
+        setDetachProgress(0);
+        setDetachStation(null);
+      }
+    }, 32);
+  }, [stationProximity.station, dockStationId, worldSeed, isDetaching]);
+
+  const handlePurchaseShip = useCallback(
+    (id: ShipId) => {
+      const def = getShipDefinition(id);
+      if (!def.price || balance < def.price || ownedShipIds.includes(id)) return;
+      const newBalance = balance - def.price;
+      const newOwned = [...ownedShipIds, id];
+      setBalance(newBalance);
+      setOwnedShipIds(newOwned);
+      saveBalance(newBalance);
+      saveOwnedShipIds(newOwned);
+      setSelectedShipId(id);
+      saveShipId(id);
+    },
+    [balance, ownedShipIds]
+  );
+
+  const handleDockAttach = useCallback((stationId: string) => {
+    setIsDocked(true);
+    setDockStationId(stationId);
+    localStorage.setItem("nebulance_docked", "true");
+    localStorage.setItem("nebulance_dockStationId", stationId);
+  }, []);
+
+  const handleRefuelCharge = useCallback(() => {
+    setBalance((prev) => {
+      const next = Math.max(0, prev - REFUEL_COST);
+      saveBalance(next);
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -92,6 +193,9 @@ export default function App() {
           }
           setIsLinking(false);
           setLinkProgress(0);
+        } else if (isDocked && gameState === "PLAYING" && !isDetaching) {
+          setDockOpen(false);
+          startDetach();
         } else if (dockOpen) {
           setDockOpen(false);
         } else if (gameState === "PLAYING") {
@@ -101,8 +205,13 @@ export default function App() {
         }
         return;
       }
-      if ((e.key === "e" || e.key === "E") && gameState === "PLAYING" && !isLinking) {
+      if ((e.key === "e" || e.key === "E") && gameState === "PLAYING" && !isLinking && !isDetaching) {
         e.preventDefault();
+        if (isDocked) {
+          setDockOpen(false);
+          startDetach();
+          return;
+        }
         if (dockOpen) {
           setDockOpen(false);
           return;
@@ -116,7 +225,17 @@ export default function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, dockOpen, isLinking, stationProximity.near, stationProximity.station, startStationLink]);
+  }, [
+    gameState,
+    dockOpen,
+    isLinking,
+    isDetaching,
+    isDocked,
+    stationProximity.near,
+    stationProximity.station,
+    startStationLink,
+    startDetach,
+  ]);
 
   const handlePlayClick = () => {
     setInputWorldSeed(worldSeed);
@@ -134,6 +253,14 @@ export default function App() {
     clearSaveData();
     setWorldSeed(finalSeed);
     setInputWorldSeed(finalSeed);
+    setOwnedShipIds([...STARTER_SHIP_IDS]);
+    saveOwnedShipIds([...STARTER_SHIP_IDS]);
+    setBalance(startingBalance);
+    saveBalance(startingBalance);
+    setSelectedShipId("spaceship1");
+    saveShipId("spaceship1");
+    setIsDocked(false);
+    setDockStationId(null);
     setGameState("GUIDE");
   };
 
@@ -337,12 +464,22 @@ export default function App() {
             linkTarget={stationProximity.near ? stationProximity.station : null}
             isLinking={isLinking}
             linkProgress={linkProgress}
+            isDetaching={isDetaching}
+            detachProgress={detachProgress}
+            detachStation={detachStation}
+            isDocked={isDocked}
+            dockStationId={dockStationId}
           />
           <StationPrompt
-            visible={(stationProximity.near || isLinking) && !dockOpen}
+            visible={(stationProximity.near || isLinking) && !dockOpen && !isDetaching}
             station={stationProximity.station}
             isLinking={isLinking}
             linkProgress={linkProgress}
+          />
+          <StationDetachPrompt
+            visible={isDetaching}
+            station={detachStation}
+            detachProgress={detachProgress}
           />
           <DockInventory
             open={dockOpen}
@@ -350,6 +487,14 @@ export default function App() {
             activeStation={stationProximity.near ? stationProximity.station : null}
             selectedShipId={selectedShipId}
             onSelectShip={handleSelectShip}
+            ownedShipIds={ownedShipIds}
+            balance={balance}
+            onPurchaseShip={handlePurchaseShip}
+            onUndock={startDetach}
+            onRefuelCharge={handleRefuelCharge}
+            onDockAttach={handleDockAttach}
+            refuelCost={REFUEL_COST}
+            isDetaching={isDetaching}
           />
           <div
             style={{
@@ -363,7 +508,7 @@ export default function App() {
             }}
           >
             <div>Press ESC to pause/quit</div>
-            <div style={{ marginTop: 6, fontSize: "12px" }}>E — Dock / Inventory · Z/C — Roll</div>
+            <div style={{ marginTop: 6, fontSize: "12px" }}>E — Dock / Undock · Z/C — Roll</div>
           </div>
           <div
             style={{

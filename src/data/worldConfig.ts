@@ -107,6 +107,9 @@ export const stationConfig = {
   proximityRange: 55,
   modelScale: 0.136,
   linkDurationMs: 1400,
+  detachDurationMs: 2200,
+  /** Distance the ship travels away from the station during undock. */
+  detachDistance: 92,
   /** Ship gravity multiplier when docked near a station. */
   dockedGravityMult: 0.02,
 } as const;

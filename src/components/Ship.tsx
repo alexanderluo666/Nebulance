@@ -4,9 +4,15 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import type { ShipId } from "../data/ships";
 import { getShipDefinition } from "../data/ships";
+import { getDockPose } from "../generators/stations";
+import type { SpaceStationData } from "../types/station";
 import { gravitySystem } from "../systems/gravity";
 import { gameAudio } from "../systems/audio";
-import { laserConfig } from "../data/worldConfig";
+import { laserConfig, stationConfig } from "../data/worldConfig";
+
+function easeOutCubic(t: number) {
+  return 1 - Math.pow(1 - t, 3);
+}
 
 type InputKeys = {
   w: boolean;
@@ -57,14 +63,22 @@ type SmokeData = {
 };
 const MAX_SMOKE = 600;
 
-function CameraController({ ship, rotation }: { ship: React.RefObject<THREE.Object3D>; rotation: React.RefObject<THREE.Euler> }) {
+function CameraController({
+  ship,
+  rotation,
+  cameraOffset,
+}: {
+  ship: React.RefObject<THREE.Object3D>;
+  rotation: React.RefObject<THREE.Euler>;
+  cameraOffset: [number, number, number];
+}) {
   const { camera } = useThree();
   const lookAtTarget = useRef(new THREE.Vector3());
 
   useFrame((_, delta) => {
     if (!ship.current || !rotation.current) return;
 
-    const offset = new THREE.Vector3(0, 2, 10);
+    const offset = new THREE.Vector3(...cameraOffset);
     offset.applyEuler(rotation.current);
 
     const targetPos = new THREE.Vector3().copy(ship.current.position).add(offset);
@@ -83,11 +97,21 @@ export default function Ship({
   rotation,
   shipId,
   controlsPaused = false,
+  isDetaching = false,
+  detachProgress = 0,
+  detachStationPosition = null,
+  isDocked = false,
+  dockStation = null,
 }: {
   position: React.RefObject<THREE.Vector3>;
   rotation: React.RefObject<THREE.Euler>;
   shipId: ShipId;
   controlsPaused?: boolean;
+  isDetaching?: boolean;
+  detachProgress?: number;
+  detachStationPosition?: [number, number, number] | null;
+  isDocked?: boolean;
+  dockStation?: SpaceStationData | null;
 }) {
   const ref = useRef<THREE.Object3D>(null!);
   const laserGroup = useRef<THREE.Group>(null);
@@ -113,8 +137,27 @@ export default function Ship({
     down: false,
   });
 
+  const detachStart = useRef<THREE.Vector3 | null>(null);
+  const detachEnd = useRef<THREE.Vector3 | null>(null);
+
   const shipDef = getShipDefinition(shipId);
   const { scene } = useGLTF(shipDef.url);
+
+  useEffect(() => {
+    if (!isDetaching || !position.current || !detachStationPosition) {
+      detachStart.current = null;
+      detachEnd.current = null;
+      return;
+    }
+    detachStart.current = position.current.clone();
+    const station = new THREE.Vector3(...detachStationPosition);
+    const away = position.current.clone().sub(station);
+    if (away.lengthSq() < 0.01) away.set(0, 0, 1);
+    away.normalize();
+    detachEnd.current = detachStart.current
+      .clone()
+      .add(away.multiplyScalar(stationConfig.detachDistance));
+  }, [isDetaching, detachStationPosition]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -188,10 +231,37 @@ export default function Ship({
     };
   }, []);
 
+  const syncMeshToState = () => {
+    if (!ref.current || !position.current || !rotation.current) return;
+    ref.current.position.copy(position.current);
+    ref.current.rotation.copy(rotation.current);
+  };
+
   useFrame((state, delta) => {
     if (!ref.current || !position.current || !rotation.current) return;
 
-    if (controlsPaused) return;
+    if (isDocked && dockStation) {
+      const pose = getDockPose(dockStation);
+      position.current.set(pose.position.x, pose.position.y, pose.position.z);
+      rotation.current.set(pose.rotation._x, pose.rotation._y, pose.rotation._z);
+      velocity.current.set(0, 0, 0);
+      syncMeshToState();
+      return;
+    }
+
+    if (isDetaching && detachStart.current && detachEnd.current) {
+      const t = easeOutCubic(detachProgress);
+      position.current.lerpVectors(detachStart.current, detachEnd.current, t);
+      velocity.current.set(0, 0, 0);
+      ref.current.position.copy(position.current);
+      ref.current.rotation.copy(rotation.current);
+      return;
+    }
+
+    if (controlsPaused) {
+      syncMeshToState();
+      return;
+    }
 
     let isBoosting = keys.current.shift && !boostCooldown.current;
 
@@ -421,9 +491,9 @@ export default function Ship({
   return (
     <>
       <group ref={ref}>
-        <primitive object={scene} scale={shipDef.previewScale} rotation={[0, Math.PI, 0]} />
+        <primitive object={scene} scale={shipDef.worldScale} rotation={[0, Math.PI, 0]} />
       </group>
-      <CameraController ship={ref} rotation={rotation} />
+      <CameraController ship={ref} rotation={rotation} cameraOffset={shipDef.cameraOffset} />
       <group ref={laserGroup} />
       <instancedMesh ref={smokeInstancedMesh} args={[smokeGeometry, smokeMaterial, MAX_SMOKE]} />
     </>
