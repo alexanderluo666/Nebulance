@@ -4,6 +4,13 @@
 + For best experience, when a new version is released, wipe the save by exiting using ESC and entering a new seed.
 + Not wiping save when upgrading to a newer version(in releases not commits) can and may cause bugs.
 
+## Naming of Versions
++ No versions before v1.0.0 are recorded, for their incompleteness, you can access them via commits.
++ First version is v1.0.0.
++ Each major version(refers to first digit) contains better features than previous one.
++ A subversion or a subrelease is indicated by the second digit, it contains minor features and upgrades.
++ A bug-fix version is indicated by the third digit, it contains bug fixes, and might also be 'alpha', 'beta', which are not limited to numbers.
+
 ## Features
 + Choose multiple ships and fly around the beautiful man-made galaxy as a plane, explore and have fun!
 + Whether you like gathering resources or fighting and fleeing, this game is perfect for you!
