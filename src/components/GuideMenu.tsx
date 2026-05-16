@@ -1,10 +1,5 @@
-import type { ShipId } from "../data/ships";
-import ShipSelector from "./ShipSelector";
-
 type Props = {
   homeStationName: string;
-  selectedShipId: ShipId;
-  onSelectShip: (id: ShipId) => void;
   onLaunch: () => void;
 };
 
@@ -38,7 +33,7 @@ const row: React.CSSProperties = {
   borderBottom: "1px solid rgba(0,255,255,0.1)",
 };
 
-export default function GuideMenu({ homeStationName, selectedShipId, onSelectShip, onLaunch }: Props) {
+export default function GuideMenu({ homeStationName, onLaunch }: Props) {
   return (
     <div
       style={{
@@ -85,15 +80,11 @@ export default function GuideMenu({ homeStationName, selectedShipId, onSelectShi
           visible from spawn. Fly toward it, then press <strong style={{ color: "#00ffff" }}>E</strong> to
           dock and resupply fuel.
         </p>
-        <ul style={{ margin: "0 0 24px", paddingLeft: "20px", fontSize: "13px", color: "#aabbcc", lineHeight: 1.7 }}>
+        <ul style={{ margin: "0 0 28px", paddingLeft: "20px", fontSize: "13px", color: "#aabbcc", lineHeight: 1.7 }}>
           <li>Look for the ISS structure ahead of you at launch</li>
           <li>Dock to refill boost energy and collect fuel cells</li>
           <li>Explore star systems beyond the station when ready</li>
         </ul>
-
-        <div style={{ marginBottom: "24px" }}>
-          <ShipSelector selectedId={selectedShipId} onSelect={onSelectShip} compact />
-        </div>
 
         <button
           type="button"

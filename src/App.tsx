@@ -444,12 +444,7 @@ export default function App() {
       )}
 
       {gameState === "GUIDE" && guideHomeStation && (
-        <GuideMenu
-          homeStationName={guideHomeStation.name}
-          selectedShipId={selectedShipId}
-          onSelectShip={handleSelectShip}
-          onLaunch={handleLaunchFromGuide}
-        />
+        <GuideMenu homeStationName={guideHomeStation.name} onLaunch={handleLaunchFromGuide} />
       )}
 
       {(gameState === "PLAYING" || gameState === "QUIT_CONFIRM") && (
