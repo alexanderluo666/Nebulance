@@ -2,7 +2,7 @@
 + A 3D space RPG game in development, using React, Threejs, TS(X)/JS, HTML and CSS.
 + You can play the game here at [Nebulance](https://alexanderluo666.github.io/Nebulance/).
 + For best experience, when a new version is released, wipe the save by exiting using ESC and entering a new seed.
-+ Not wiping save when upgrading to a newer version can and may cause bugs.
++ Not wiping save when upgrading to a newer version(in releases not commits) can and may cause bugs.
 
 ## Features
 + Choose multiple ships and fly around the beautiful man-made galaxy as a plane, explore and have fun!
