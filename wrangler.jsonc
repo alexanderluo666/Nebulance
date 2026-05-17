@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nebulance",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-05-17",
   "observability": {
     "enabled": true
@@ -10,5 +11,12 @@
   },
   "compatibility_flags": [
     "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nebulance-db",
+      "database_id": "local-dev-placeholder"
+    }
   ]
 }

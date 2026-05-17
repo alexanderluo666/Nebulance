@@ -5,48 +5,58 @@ import StationPrompt from "./components/StationPrompt";
 import GuideMenu from "./components/GuideMenu";
 import ShipSelector from "./components/ShipSelector";
 import type { StationProximityState } from "./types/station";
-import {
-  loadSavedShipId,
-  saveShipId,
-  loadOwnedShipIds,
-  saveOwnedShipIds,
-  getShipDefinition,
-  STARTER_SHIP_IDS,
-  type ShipId,
-} from "./data/ships";
-import { loadBalance, saveBalance, startingBalance, REFUEL_COST } from "./data/economy";
+import { saveShipId, saveOwnedShipIds, getShipDefinition, type ShipId } from "./data/ships";
+import { saveBalance, REFUEL_COST } from "./data/economy";
 import StationDetachPrompt from "./components/StationDetachPrompt";
 import { generateGalaxy } from "./generators/starSystem";
 import { generateStations, getHomeStation } from "./generators/stations";
 import { stationConfig } from "./data/worldConfig";
-
-const generateRandomSeed = () => Math.floor(100000 + Math.random() * 900000).toString();
+import {
+  clearExpeditionKeys,
+  loadPlayerState,
+  patchPlayerState,
+  registerSyncRetryOnReconnect,
+  resetPlayerStateForNewExpedition,
+} from "./save";
 
 const NEW_GAME_FLAG = "nebulance_newGame";
 
-function clearSaveData() {
-  localStorage.removeItem("nebulance_shipPos");
-  localStorage.removeItem("nebulance_shipRot");
-  localStorage.removeItem("nebulance_energy");
-  localStorage.removeItem("nebulance_inventory");
-  localStorage.removeItem("nebulance_docked");
-  localStorage.removeItem("nebulance_balance");
-  localStorage.removeItem("nebulance_ownedShips");
-  localStorage.removeItem("nebulance_dockStationId");
+function normalizeSeed(value: string | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  const trimmed = value.trim();
+  if (trimmed === "undefined" || trimmed === "null") return "";
+  return trimmed;
+}
+
+function readSessionPosition() {
+  try {
+    const pos = localStorage.getItem("nebulance_shipPos");
+    return pos ? (JSON.parse(pos) as { x: number; y: number; z: number }) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readSessionRotation() {
+  try {
+    const rot = localStorage.getItem("nebulance_shipRot");
+    return rot ? (JSON.parse(rot) as { _x: number; _y: number; _z: number }) : null;
+  } catch {
+    return null;
+  }
 }
 
 type GameState = "MAIN_MENU" | "SEED_MENU" | "GUIDE" | "PLAYING" | "QUIT_CONFIRM";
 
 export default function App() {
-  const hasSave = localStorage.getItem("nebulance_shipPos") !== null;
+  const [bootSave] = useState(() => loadPlayerState());
+  const hasSave = bootSave.session.shipPos !== null;
   const [gameState, setGameState] = useState<GameState>(hasSave ? "PLAYING" : "MAIN_MENU");
-  const [worldSeed, setWorldSeed] = useState(() => {
-    return localStorage.getItem("nebulance_worldSeed") || generateRandomSeed();
-  });
-  const [inputWorldSeed, setInputWorldSeed] = useState(worldSeed);
-  const [selectedShipId, setSelectedShipId] = useState<ShipId>(loadSavedShipId);
-  const [ownedShipIds, setOwnedShipIds] = useState<ShipId[]>(loadOwnedShipIds);
-  const [balance, setBalance] = useState(loadBalance);
+  const [worldSeed, setWorldSeed] = useState(() => normalizeSeed(bootSave.session.worldSeed));
+  const [inputWorldSeed, setInputWorldSeed] = useState(() => normalizeSeed(bootSave.session.worldSeed));
+  const [selectedShipId, setSelectedShipId] = useState<ShipId>(bootSave.session.shipId);
+  const [ownedShipIds, setOwnedShipIds] = useState<ShipId[]>(bootSave.session.ownedShipIds);
+  const [balance, setBalance] = useState(bootSave.session.balance);
   const [dockOpen, setDockOpen] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [linkProgress, setLinkProgress] = useState(0);
@@ -55,10 +65,8 @@ export default function App() {
   const [detachProgress, setDetachProgress] = useState(0);
   const [detachStation, setDetachStation] = useState<StationProximityState["station"]>(null);
   const detachTimerRef = useRef<number | null>(null);
-  const [isDocked, setIsDocked] = useState(() => localStorage.getItem("nebulance_docked") === "true");
-  const [dockStationId, setDockStationId] = useState<string | null>(
-    () => localStorage.getItem("nebulance_dockStationId")
-  );
+  const [isDocked, setIsDocked] = useState(bootSave.session.docked);
+  const [dockStationId, setDockStationId] = useState<string | null>(bootSave.session.dockStationId);
   const [stationProximity, setStationProximity] = useState<StationProximityState>({
     near: false,
     station: null,
@@ -70,9 +78,43 @@ export default function App() {
     return getHomeStation(generateStations(worldSeed, generateGalaxy(worldSeed)));
   }, [gameState, worldSeed]);
 
+  const flushSave = useCallback(
+    (syncCloud = gameState === "PLAYING") => {
+      patchPlayerState(
+        {
+          session: {
+            worldSeed,
+            shipId: selectedShipId,
+            ownedShipIds,
+            balance,
+            docked: isDocked,
+            dockStationId,
+            shipPos: readSessionPosition(),
+            shipRot: readSessionRotation(),
+            energy: parseFloat(localStorage.getItem("nebulance_energy") ?? "100"),
+          },
+        },
+        { syncCloud }
+      );
+    },
+    [gameState, worldSeed, selectedShipId, ownedShipIds, balance, isDocked, dockStationId]
+  );
+
+  useEffect(() => {
+    const unregister = registerSyncRetryOnReconnect();
+    return unregister;
+  }, []);
+
+  useEffect(() => {
+    if (gameState !== "PLAYING") return;
+    const interval = window.setInterval(() => flushSave(true), 5000);
+    return () => window.clearInterval(interval);
+  }, [gameState, flushSave]);
+
   useEffect(() => {
     localStorage.setItem("nebulance_worldSeed", worldSeed);
-  }, [worldSeed]);
+    flushSave(false);
+  }, [worldSeed, flushSave]);
 
   const startStationLink = useCallback(() => {
     if (linkTimerRef.current !== null) {
@@ -164,6 +206,9 @@ export default function App() {
       saveOwnedShipIds(newOwned);
       setSelectedShipId(id);
       saveShipId(id);
+      patchPlayerState({
+        session: { balance: newBalance, ownedShipIds: newOwned, shipId: id },
+      });
     },
     [balance, ownedShipIds]
   );
@@ -179,6 +224,7 @@ export default function App() {
     setBalance((prev) => {
       const next = Math.max(0, prev - REFUEL_COST);
       saveBalance(next);
+      patchPlayerState({ session: { balance: next } });
       return next;
     });
   }, []);
@@ -236,7 +282,7 @@ export default function App() {
   ]);
 
   const handlePlayClick = () => {
-    setInputWorldSeed(worldSeed);
+    setInputWorldSeed(normalizeSeed(worldSeed));
     setGameState("SEED_MENU");
   };
 
@@ -247,16 +293,15 @@ export default function App() {
 
   const handleStartGame = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalSeed = inputWorldSeed.trim() === "" ? generateRandomSeed() : inputWorldSeed;
-    clearSaveData();
-    setWorldSeed(finalSeed);
-    setInputWorldSeed(finalSeed);
-    setOwnedShipIds([...STARTER_SHIP_IDS]);
-    saveOwnedShipIds([...STARTER_SHIP_IDS]);
-    setBalance(startingBalance);
-    saveBalance(startingBalance);
-    setSelectedShipId("spaceship1");
-    saveShipId("spaceship1");
+    const finalSeed = normalizeSeed(inputWorldSeed);
+    clearExpeditionKeys();
+    const fresh = resetPlayerStateForNewExpedition(finalSeed, selectedShipId);
+    setWorldSeed(fresh.session.worldSeed);
+    setInputWorldSeed(fresh.session.worldSeed);
+    setOwnedShipIds(fresh.session.ownedShipIds);
+    setBalance(fresh.session.balance);
+    setSelectedShipId(fresh.session.shipId);
+    saveShipId(fresh.session.shipId);
     setIsDocked(false);
     setDockStationId(null);
     setGameState("GUIDE");
@@ -265,11 +310,13 @@ export default function App() {
   const handleSelectShip = (id: ShipId) => {
     setSelectedShipId(id);
     saveShipId(id);
+    flushSave(false);
   };
 
   const handleLaunchFromGuide = () => {
     saveShipId(selectedShipId);
     localStorage.setItem(NEW_GAME_FLAG, "true");
+    flushSave(true);
     setGameState("PLAYING");
   };
 
@@ -370,7 +417,8 @@ export default function App() {
               textAlign: "center",
             }}
           >
-            Choose your hull, then set a world seed. The same seed always generates the same star systems and stations.
+            Choose your hull, then optionally set a world seed. Leave blank for the default galaxy, or enter a seed to
+            generate the same star systems and stations every time.
           </p>
           <div style={{ width: "min(560px, 96vw)", marginBottom: "28px" }}>
             <ShipSelector selectedId={selectedShipId} onSelect={handleSelectShip} />
@@ -391,7 +439,7 @@ export default function App() {
               type="text"
               value={inputWorldSeed}
               onChange={(e) => setInputWorldSeed(e.target.value)}
-              placeholder="e.g. 123456"
+              placeholder="optional — leave blank"
               style={{
                 fontSize: "1.5rem",
                 padding: "16px",

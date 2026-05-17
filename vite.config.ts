@@ -1,9 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-import { cloudflare } from "@cloudflare/vite-plugin";
-
+// Local dev + production build use standard Vite.
+// Cloudflare Worker + D1 deploy via `npm run deploy` (wrangler.jsonc).
 export default defineConfig({
-  plugins: [react(), cloudflare()],
+  plugins: [react()],
   base: "/",
 });
