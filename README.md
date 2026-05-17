@@ -1,6 +1,6 @@
 # Nebulance :dizzy:
 + A indie 3D space RPG game in development, using React, Threejs, TS(X)/JS, HTML and CSS.
-+ You can play the game here at [Nebulance](https://alexanderluo.com/nebulance).
++ You can play the game here at [Nebulance](https://nebulance.alexanderluo.com).
 + For best experience, when a new version is released, export the save and import it on another version is recommended.
 + You can always play previous versions up to v1.0.0, however playing the lastest version is always the most recommended.
 + Reading the guide at the start of a new session or migrating to a new version is recommended.
