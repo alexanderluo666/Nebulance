@@ -27,7 +27,7 @@
 + First properly made and maintained 3D game of mine.
 + Focuses on storytelling, gameplay and game vibe.
 + Naming for Nebulaster comes from Nebula and ster as a suffix.
-+ Naming for Ghostrider comes from Ghost and rider.
++ Naming for Ghostrider comes from Ghost and rider(not to be affiliated with movies).
 + Naming for Haloist comes from Halo and ist.
   
 ## Ship Controls For Basic Ship :keyboard:
@@ -54,7 +54,7 @@
 + Spaceship by Liz Reddington used for SpaceShip3 [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/5nWeu4IQXVX)
 + dune spaceship by Tom De Wispelaere used for SpaceShip4 [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/fo5Gj1JPq-v)
 + 1 by Eric Finn used for SpaceShip5 [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/05X3xYCrpya)
-+ SVG icon by [SVGAI](https://www.svgai.org/)
++ SVG icon by [SVGREPO](https://www.svgrepo.com/svg/285247/spacecraft-spaceship)
 + Audio from [Pixabay Music](https://pixabay.com/music/)
 
 ![Logo](./public/favicon.svg)
