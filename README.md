@@ -14,6 +14,7 @@
 ## Features :star:
 + Choose multiple ships and fly around the beautiful man-made galaxy as a plane, explore and have fun!
 + Whether you like gathering resources or fighting and fleeing, this game is perfect for you!
++ Unlock different features and tools via purchasing by N$, Nebulance Dollars.
 
 ## Purpose And Vision :eyes:
 + Name inspiration taken from Nebula(Star clouds) + Balance &#8594; Nebu-lance.
