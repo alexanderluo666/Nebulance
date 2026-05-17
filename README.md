@@ -27,7 +27,7 @@
 + First properly made and maintained 3D game of mine.
 + Focuses on storytelling, gameplay and game vibe.
 + Naming for Nebulaster comes from Nebula and ster as a suffix.
-+ Naming for Ghostrider comes from Ghost and rider.
++ Naming for Ghostrider comes from Ghost and rider(not to be affiliated with movies).
 + Naming for Haloist comes from Halo and ist.
   
 ## Ship Controls For Basic Ship :keyboard:
