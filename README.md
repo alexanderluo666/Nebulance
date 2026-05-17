@@ -4,6 +4,8 @@
 + For best experience, when a new version is released, export the save and import it on another version is recommended.
 + You can always play previous versions up to v1.0.0, however playing the lastest version is always the most recommended.
 + Reading the guide at the start of a new session or migrating to a new version is recommended.
++ For the best playing experience on a specific version(e.g. v1.0.0), download a version locally if possible at [Releases](https://github.com/alexanderluo666/Nebulance/releases).
++ It is also recommended to look at the features of a new version via the [Releases](https://github.com/alexanderluo666/Nebulance/releases).
 
 ## Naming of Versions :page_facing_up:
 + No versions before v1.0.0 are recorded, for their incompleteness, you can access them via commits.
