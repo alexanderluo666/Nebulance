@@ -18,13 +18,15 @@
 + Choose multiple ships and fly around the beautiful man-made galaxy as a plane, explore and have fun!
 + Whether you like gathering resources or fighting and fleeing, this game is perfect for you!
 + Unlock different features and tools via purchasing by N$, Nebulance Dollars.
-+ Has backend and frontend, runs by and combined to get **npm run stack**:
++ Has backend and frontend, runs by:
 ```bash
 npx wrangler pages dev dist --d1=nebulance_db
 npm run dev
 ```
-
-
++ Also runs by:
+``` bash
+npm run stack
+```
 ## Purpose And Vision :eyes:
 + Name inspiration taken from Nebula(Star clouds) + Balance &#8594; Nebu-lance.
 + To build a game from scratch while learning React, Threejs, TS, HTML and CSS.
