@@ -4,12 +4,10 @@ export interface Env {
   DB: D1Database;
 }
 
-type SaveBody = {
-  playerId?: string;
-  state?: ModernPlayerState;
-};
+/** Accepts v6 state at root or wrapped as { playerId, state }. */
+type SaveBody = ModernPlayerState | { playerId?: string; state?: ModernPlayerState };
 
-const CORS_HEADERS = {
+const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Accept",
@@ -18,17 +16,14 @@ const CORS_HEADERS = {
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      "Content-Type": "application/json",
-      ...CORS_HEADERS,
-    },
+    headers: { "Content-Type": "application/json", ...CORS },
   });
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, { status: 204, headers: CORS });
     }
 
     const url = new URL(request.url);
@@ -50,13 +45,21 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
   try {
     body = (await request.json()) as SaveBody;
   } catch {
-    return json({ ok: false, error: "Invalid JSON body" }, 400);
+    return json({ ok: false, error: "Invalid JSON" }, 400);
   }
 
-  const playerId = body.playerId?.trim();
-  const state = body.state;
+  const state =
+    "version" in body && body.version === "6.0.0"
+      ? body
+      : "state" in body && body.state?.version === "6.0.0"
+        ? body.state
+        : null;
 
-  if (!playerId || !state || state.version !== "6.0.0") {
+  const playerId =
+    state?.playerId?.trim() ??
+    ("playerId" in body && typeof body.playerId === "string" ? body.playerId.trim() : "");
+
+  if (!playerId || !state) {
     return json({ ok: false, error: "playerId and v6 state required" }, 400);
   }
 
@@ -76,23 +79,13 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
 
 async function handleLoad(url: URL, env: Env): Promise<Response> {
   const playerId = url.searchParams.get("playerId")?.trim();
-  if (!playerId) {
-    return json({ ok: false, error: "playerId query required" }, 400);
-  }
+  if (!playerId) return json({ ok: false, error: "playerId required" }, 400);
 
-  const row = await env.DB.prepare(
-    `SELECT data, updated_at FROM player_saves WHERE player_id = ?`
-  )
+  const row = await env.DB.prepare(`SELECT data, updated_at FROM player_saves WHERE player_id = ?`)
     .bind(playerId)
     .first<{ data: string; updated_at: string }>();
 
-  if (!row) {
-    return json({ ok: true, state: null }, 200);
-  }
+  if (!row) return json({ ok: true, state: null });
 
-  return json({
-    ok: true,
-    state: JSON.parse(row.data),
-    lastSynced: row.updated_at,
-  });
+  return json({ ok: true, state: JSON.parse(row.data), lastSynced: row.updated_at });
 }

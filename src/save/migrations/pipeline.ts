@@ -1,17 +1,36 @@
 import { createDefaultSession, DEFAULT_SHIP_UPGRADES, DEFAULT_UNLOCKED_LEVELS, DEFAULT_USERNAME } from "../defaults";
 import type {
   GameSessionState,
-  LegacyPlayerStateV2,
-  LegacyPlayerStateV3,
   ModernPlayerState,
-  ModernPlayerStateV4,
-  ModernPlayerStateV5,
   ShipUpgrades,
   UnknownSavePayload,
 } from "../types";
 import { CURRENT_SAVE_VERSION } from "../types";
 import type { SaveVersion } from "../types";
 import { compareVersions, normalizeVersion } from "../versions";
+
+type LegacyV2 = { version: "2.0.0"; highScore: number; username: string };
+type LegacyV3 = { version: "3.0.0"; highScore: number; username: string };
+
+type ModernPlayerStateV4 = {
+  version: "4.0.0";
+  highScore: number;
+  username: string;
+  shipUpgrades: ShipUpgrades;
+  unlockedLevels: number[];
+  lastSynced: string | null;
+};
+
+type ModernPlayerStateV5 = {
+  version: "5.0.0";
+  highScore: number;
+  username: string;
+  shipUpgrades: ShipUpgrades;
+  unlockedLevels: number[];
+  lastSynced: string | null;
+  playerId: string;
+  session: GameSessionState;
+};
 
 function readNumber(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -30,7 +49,6 @@ function readShipUpgrades(raw: unknown): ShipUpgrades {
   return {
     laserLevel: readNumber(o.laserLevel, DEFAULT_SHIP_UPGRADES.laserLevel),
     shieldLevel: readNumber(o.shieldLevel, DEFAULT_SHIP_UPGRADES.shieldLevel),
-    engineSpeed: readNumber(o.engineSpeed, DEFAULT_SHIP_UPGRADES.engineSpeed),
   };
 }
 
@@ -69,7 +87,7 @@ function readSession(raw: unknown, fallbackSeed: string): GameSessionState {
   };
 }
 
-export function migrateV1ToV2(data: UnknownSavePayload): LegacyPlayerStateV2 {
+export function migrateV1ToV2(data: UnknownSavePayload): LegacyV2 {
   return {
     version: "2.0.0",
     highScore: readNumber(data.highScore, 0),
@@ -77,7 +95,7 @@ export function migrateV1ToV2(data: UnknownSavePayload): LegacyPlayerStateV2 {
   };
 }
 
-export function migrateV2ToV3(data: LegacyPlayerStateV2): LegacyPlayerStateV3 {
+export function migrateV2ToV3(data: LegacyV2): LegacyV3 {
   return {
     version: "3.0.0",
     highScore: data.highScore,
@@ -85,7 +103,7 @@ export function migrateV2ToV3(data: LegacyPlayerStateV2): LegacyPlayerStateV3 {
   };
 }
 
-export function migrateV3ToV4(data: LegacyPlayerStateV3, raw: UnknownSavePayload): ModernPlayerStateV4 {
+export function migrateV3ToV4(data: LegacyV3, raw: UnknownSavePayload): ModernPlayerStateV4 {
   return {
     version: "4.0.0",
     highScore: data.highScore,
@@ -126,7 +144,7 @@ export function migrateV5ToV6(data: ModernPlayerStateV5, raw: UnknownSavePayload
   };
 }
 
-function snapshotPrimitives(raw: UnknownSavePayload, fallback: LegacyPlayerStateV2): LegacyPlayerStateV2 {
+function snapshotPrimitives(raw: UnknownSavePayload, fallback: LegacyV2): LegacyV2 {
   return {
     version: "2.0.0",
     highScore: readNumber(raw.highScore, fallback.highScore),

@@ -9,7 +9,6 @@ export const DEFAULT_USERNAME = "Pilot";
 export const DEFAULT_SHIP_UPGRADES: ShipUpgrades = {
   laserLevel: 1,
   shieldLevel: 1,
-  engineSpeed: 1,
 };
 
 export const DEFAULT_UNLOCKED_LEVELS: number[] = [1];

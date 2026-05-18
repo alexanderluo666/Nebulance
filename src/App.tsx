@@ -13,9 +13,8 @@ import { generateStations, getHomeStation } from "./generators/stations";
 import { stationConfig } from "./data/worldConfig";
 import {
   clearExpeditionKeys,
-  loadPlayerState,
   patchPlayerState,
-  registerSyncRetryOnReconnect,
+  playerSyncEngine,
   resetPlayerStateForNewExpedition,
 } from "./save";
 
@@ -49,7 +48,7 @@ function readSessionRotation() {
 type GameState = "MAIN_MENU" | "SEED_MENU" | "GUIDE" | "PLAYING" | "QUIT_CONFIRM";
 
 export default function App() {
-  const [bootSave] = useState(() => loadPlayerState());
+  const [bootSave] = useState(() => playerSyncEngine.bootstrap());
   const hasSave = bootSave.session.shipPos !== null;
   const [gameState, setGameState] = useState<GameState>(hasSave ? "PLAYING" : "MAIN_MENU");
   const [worldSeed, setWorldSeed] = useState(() => normalizeSeed(bootSave.session.worldSeed));
@@ -101,8 +100,7 @@ export default function App() {
   );
 
   useEffect(() => {
-    const unregister = registerSyncRetryOnReconnect();
-    return unregister;
+    return playerSyncEngine.startBackgroundSync();
   }, []);
 
   useEffect(() => {

@@ -8,15 +8,21 @@ export {
   getCachedPlayerState,
   registerSyncRetryOnReconnect,
 } from "./storage";
-export { queueCloudSync, syncPlayerStateToCloud, retryPendingCloudSync, getSaveApiUrl } from "./sync";
+export {
+  queueCloudSync,
+  syncPlayerStateToCloud,
+  retryPendingCloudSync,
+  getSaveApiUrl,
+  readLocalPlayerStateRaw,
+} from "./sync";
+export { PlayerSyncEngine, playerSyncEngine } from "./syncEngine";
 export { createFreshModernState, DEFAULT_SHIP_UPGRADES, DEFAULT_UNLOCKED_LEVELS } from "./defaults";
 export type {
   ModernPlayerState,
+  LegacyPlayerState,
   LegacyPlayerStateV1,
   LegacyPlayerStateV2,
   LegacyPlayerStateV3,
-  ModernPlayerStateV4,
-  ModernPlayerStateV5,
   GameSessionState,
   ShipUpgrades,
   SyncResult,

@@ -1,6 +1,6 @@
 import type { ShipId } from "../data/ships";
 
-/** Canonical shipped game version. */
+/** Canonical save format version. */
 export const CURRENT_SAVE_VERSION = "6.0.0" as const;
 
 export type SaveVersion =
@@ -11,10 +11,28 @@ export type SaveVersion =
   | "5.0.0"
   | typeof CURRENT_SAVE_VERSION;
 
+/** v6.0.0 ship upgrade progression. */
 export type ShipUpgrades = {
   laserLevel: number;
   shieldLevel: number;
-  engineSpeed: number;
+};
+
+/**
+ * Canonical v6.0.0 player profile synced with Cloudflare D1.
+ * Legacy v1–v3 payloads only carried `highScore`; migration injects the rest.
+ */
+export type ModernPlayerState = {
+  version: typeof CURRENT_SAVE_VERSION;
+  highScore: number;
+  shipUpgrades: ShipUpgrades;
+  lastSynced: string | null;
+  pendingSync: boolean;
+  /** Stable id for D1 row key. */
+  playerId: string;
+  /** Extended Nebulance runtime (also persisted locally). */
+  username: string;
+  unlockedLevels: number[];
+  session: GameSessionState;
 };
 
 export type InventoryItemSave = {
@@ -24,7 +42,6 @@ export type InventoryItemSave = {
   icon: string;
 };
 
-/** Live expedition data (consolidated from scattered localStorage keys). */
 export type GameSessionState = {
   worldSeed: string;
   shipId: ShipId;
@@ -38,60 +55,13 @@ export type GameSessionState = {
   dockStationId: string | null;
 };
 
-/** v1.0.0 – v3.0.0: primitive profile fields only. */
-export type LegacyPlayerStateV1 = {
-  version?: "1.0.0";
-  highScore: number;
-  username: string;
+/** v1.0.0 – v3.0.0: primitive profile only. */
+export type LegacyPlayerState = {
+  version?: "1.0.0" | "2.0.0" | "3.0.0";
+  highScore?: number;
+  username?: string;
 };
 
-export type LegacyPlayerStateV2 = {
-  version: "2.0.0";
-  highScore: number;
-  username: string;
-};
-
-export type LegacyPlayerStateV3 = {
-  version: "3.0.0";
-  highScore: number;
-  username: string;
-};
-
-/** v4.0.0+: progression objects and sync metadata. */
-export type ModernPlayerStateV4 = {
-  version: "4.0.0";
-  highScore: number;
-  username: string;
-  shipUpgrades: ShipUpgrades;
-  unlockedLevels: number[];
-  lastSynced: string | null;
-};
-
-export type ModernPlayerStateV5 = {
-  version: "5.0.0";
-  highScore: number;
-  username: string;
-  shipUpgrades: ShipUpgrades;
-  unlockedLevels: number[];
-  lastSynced: string | null;
-  playerId: string;
-  session: GameSessionState;
-};
-
-/** v6.0.0: cloud sync flags + full session bridge. */
-export type ModernPlayerState = {
-  version: typeof CURRENT_SAVE_VERSION;
-  highScore: number;
-  username: string;
-  shipUpgrades: ShipUpgrades;
-  unlockedLevels: number[];
-  lastSynced: string | null;
-  pendingSync: boolean;
-  playerId: string;
-  session: GameSessionState;
-};
-
-/** Union of any shape we may read from storage or the API. */
 export type UnknownSavePayload = Record<string, unknown>;
 
 export type CloudSaveRequest = {
@@ -107,3 +77,8 @@ export type CloudSaveResponse = {
 export type SyncResult =
   | { ok: true; lastSynced: string }
   | { ok: false; reason: "offline" | "http" | "network" | "parse"; error?: string };
+
+/** @deprecated Use LegacyPlayerState */
+export type LegacyPlayerStateV1 = LegacyPlayerState;
+export type LegacyPlayerStateV2 = LegacyPlayerState & { version: "2.0.0" };
+export type LegacyPlayerStateV3 = LegacyPlayerState & { version: "3.0.0" };

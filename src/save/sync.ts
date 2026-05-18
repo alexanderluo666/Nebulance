@@ -1,10 +1,14 @@
 import type { CloudSaveResponse, ModernPlayerState, SyncResult } from "./types";
-import { applySessionToLegacyKeys } from "./legacyBridge";
+import { PLAYER_STATE_STORAGE_KEY, applySessionToLegacyKeys } from "./legacyBridge";
 
-const DEFAULT_SAVE_API_URL = "https://your-worker-subdomain.workers.dev/api/save";
-
+/**
+ * Local dev:  http://localhost:8788/api/save  (VITE_API_URL=http://localhost:8788)
+ * Production: /api/save                        (VITE_API_URL empty → same-origin)
+ */
 export function getSaveApiUrl(): string {
-  return import.meta.env.VITE_SAVE_API_URL ?? DEFAULT_SAVE_API_URL;
+  const base = import.meta.env.VITE_API_URL ?? "http://localhost:8788";
+  const normalized = String(base).replace(/\/$/, "");
+  return normalized ? `${normalized}/api/save` : "/api/save";
 }
 
 function isOfflineError(error: unknown): boolean {
@@ -13,36 +17,43 @@ function isOfflineError(error: unknown): boolean {
   return false;
 }
 
+function persistPendingLocal(state: ModernPlayerState): ModernPlayerState {
+  const pending: ModernPlayerState = { ...state, pendingSync: true };
+  applySessionToLegacyKeys(pending);
+  return pending;
+}
+
+function persistSyncedLocal(state: ModernPlayerState, lastSynced: string): ModernPlayerState {
+  const synced: ModernPlayerState = { ...state, lastSynced, pendingSync: false };
+  applySessionToLegacyKeys(synced);
+  return synced;
+}
+
 /**
- * POST modern v6 state to the Cloudflare Worker.
- * On failure, persists locally and marks pendingSync without throwing.
+ * POST v6 player state to Cloudflare Worker `/api/save`.
+ * Never throws — falls back to localStorage with pendingSync: true.
  */
 export async function syncPlayerStateToCloud(state: ModernPlayerState): Promise<SyncResult> {
-  const payload = {
-    playerId: state.playerId,
-    state: {
-      ...state,
-      pendingSync: false,
-    },
-  };
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    persistPendingLocal(state);
+    return { ok: false, reason: "offline", error: "Browser is offline" };
+  }
+
+  const playerState: ModernPlayerState = { ...state, pendingSync: false };
+
+  // If running locally: http://localhost:8788/api/save
+  // If running in production: /api/save (same-origin)
+  const targetUrl = getSaveApiUrl();
 
   try {
-    const response = await fetch(getSaveApiUrl(), {
+    const response = await fetch(targetUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(payload),
-      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(playerState),
     });
 
     if (!response.ok) {
-      const offlineMarked: ModernPlayerState = {
-        ...state,
-        pendingSync: true,
-      };
-      applySessionToLegacyKeys(offlineMarked);
+      persistPendingLocal(state);
       return {
         ok: false,
         reason: "http",
@@ -54,25 +65,15 @@ export async function syncPlayerStateToCloud(state: ModernPlayerState): Promise<
     try {
       body = (await response.json()) as CloudSaveResponse;
     } catch {
-      body = null;
+      persistPendingLocal(state);
+      return { ok: false, reason: "parse", error: "Invalid JSON from save API" };
     }
 
     const lastSynced = body?.lastSynced ?? new Date().toISOString();
-    const synced: ModernPlayerState = {
-      ...state,
-      lastSynced,
-      pendingSync: false,
-    };
-    applySessionToLegacyKeys(synced);
-
+    persistSyncedLocal(state, lastSynced);
     return { ok: true, lastSynced };
   } catch (error) {
-    const offlineMarked: ModernPlayerState = {
-      ...state,
-      pendingSync: true,
-    };
-    applySessionToLegacyKeys(offlineMarked);
-
+    persistPendingLocal(state);
     return {
       ok: false,
       reason: isOfflineError(error) ? "offline" : "network",
@@ -83,22 +84,23 @@ export async function syncPlayerStateToCloud(state: ModernPlayerState): Promise<
 
 let syncInFlight: Promise<SyncResult> | null = null;
 
-/** Debounced cloud push – safe to call from the game loop / autosave hooks. */
+/** Coalesced cloud push — safe to call from autosave / game loop. */
 export function queueCloudSync(state: ModernPlayerState): Promise<SyncResult> {
   if (syncInFlight) return syncInFlight;
-
   syncInFlight = syncPlayerStateToCloud(state).finally(() => {
     syncInFlight = null;
   });
-
   return syncInFlight;
 }
 
-/** Retry any save flagged pendingSync (e.g. after reconnect). */
 export async function retryPendingCloudSync(
   loader: () => ModernPlayerState
 ): Promise<SyncResult | null> {
   const state = loader();
   if (!state.pendingSync) return null;
   return queueCloudSync(state);
+}
+
+export function readLocalPlayerStateRaw(): string | null {
+  return localStorage.getItem(PLAYER_STATE_STORAGE_KEY);
 }
