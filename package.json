@@ -7,8 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "preview": "npm run build && wrangler pages dev dist",
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "db:migrate": "wrangler d1 execute nebulance-db --local --file=functions/schema.sql",
+    "db:migrate:remote": "wrangler d1 execute nebulance-db --remote --file=functions/schema.sql"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -19,6 +21,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.37.1",
+    "@cloudflare/workers-types": "^4.20260518.1",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",

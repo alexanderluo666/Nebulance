@@ -1,22 +1,17 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nebulance",
-  "main": "worker/index.ts",
   "compatibility_date": "2026-05-17",
+  "pages_build_output_dir": "./dist",
   "observability": {
     "enabled": true
   },
-  "assets": {
-    "not_found_handling": "single-page-application"
-  },
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "nebulance-db",
-      "database_id": "local-dev-placeholder"
+      "database_id": "baabaa73-11c1-4593-915f-949595e6fc13"
     }
   ]
 }

@@ -10,6 +10,7 @@ export {
 } from "./storage";
 export {
   queueCloudSync,
+  syncGameStateToServer,
   syncPlayerStateToCloud,
   retryPendingCloudSync,
   getSaveApiUrl,
